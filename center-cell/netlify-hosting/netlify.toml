@@ -1,0 +1,16 @@
+[build]
+  command = "node --test gateway.test.mjs && node build.mjs"
+  publish = "dist"
+  functions = "functions"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/_next/*"
+  to = "https://center-cell-atendimento.fredborrasca.chatgpt.site/_next/:splat"
+  status = 200
+  force = true
