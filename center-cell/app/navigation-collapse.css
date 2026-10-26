@@ -1,0 +1,2 @@
+.app-shell .nav,.app-shell .main,.attendant-nav{transition:width .2s ease,min-width .2s ease,margin-left .2s ease}
+@media(prefers-reduced-motion:reduce){.app-shell .nav,.app-shell .main,.attendant-nav{transition:none}}

@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {modelFailure,ceciDiagnostic} from '../lib/ceci-diagnostics.ts';
+assert.equal(modelFailure(429,'insufficient_quota'),'CECI_MODEL_QUOTA');
+assert.equal(modelFailure(429,'rate_limit_exceeded'),'CECI_MODEL_RATE_LIMIT');
+assert.equal(modelFailure(401),'CECI_MODEL_AUTH');
+assert.equal(modelFailure(404),'CECI_MODEL_ACCESS');
+assert.equal(modelFailure(400),'CECI_MODEL_REQUEST');
+assert.equal(modelFailure(503),'CECI_MODEL_TEMPORARY');
+assert.notEqual(ceciDiagnostic(modelFailure(429,'insufficient_quota')),ceciDiagnostic(modelFailure(429,'rate_limit_exceeded')));
+assert.match(ceciDiagnostic('CECI_MODEL_QUOTA'),/créditos/);
+console.log('PASS: actionable diagnostics distinguish quota, rate, credentials, access and temporary failures');

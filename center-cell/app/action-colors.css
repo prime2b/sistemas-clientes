@@ -1,0 +1,66 @@
+/* Commercial actions and monetary values use a separate semantic palette. */
+:root {
+  --cc-action-blue: #155b9d;
+  --cc-action-blue-hover: #104c85;
+  --cc-action-blue-soft: #eaf3ff;
+  --cc-confirm-green: #17634f;
+  --cc-confirm-green-hover: #12543f;
+  --cc-confirm-green-soft: #e9f6ef;
+}
+
+/* Product and quote cards inside both conversation panels. */
+.cc-chat-card .cc-card-product-icon,
+.cc-chat-card .cc-quote-icon {background:var(--cc-action-blue-soft);color:var(--cc-action-blue)}
+.cc-chat-card .cc-card-price {color:var(--cc-action-blue)}
+.cc-chat-card .cc-quote-card-total {background:var(--cc-action-blue-soft);border-top-color:#d5e6f6}
+.cc-chat-card .cc-quote-card-total strong {color:var(--cc-action-blue)}
+.cc-chat-card .cc-quote-status.approved {background:var(--cc-confirm-green-soft);color:var(--cc-confirm-green)}
+.cc-chat-card .cc-quote-card-actions button {background:var(--cc-confirm-green)}
+.cc-chat-card .cc-quote-card-actions button:hover {background:var(--cc-confirm-green-hover)}
+
+/* Catalog prices, cart, and quote creation. Unverified prices stay a warning. */
+.cc-catalog-price:not(.unverified),
+.cc-catalog-cart-lines>div>strong,
+.cc-catalog-cart-lines small:not(.unverified),
+.cc-catalog-total strong {color:var(--cc-action-blue)}
+.cc-catalog-price.unverified,
+.cc-catalog-cart-lines small.unverified {color:var(--cx-warning)}
+.cc-catalog-row.in-cart {background:var(--cc-action-blue-soft)}
+.cc-catalog-stepper {border-color:var(--cc-action-blue);color:var(--cc-action-blue)}
+.cc-catalog-action button[data-slot=button][data-variant=outline],
+.cc-catalog-secondary[data-slot=button] {border-color:var(--cc-action-blue);color:var(--cc-action-blue)}
+.cc-catalog-action button[data-slot=button][data-variant=outline]:hover,
+.cc-catalog-secondary[data-slot=button]:hover {background:var(--cc-action-blue-soft)}
+.cc-catalog-primary[data-slot=button] {background:var(--cc-action-blue);color:#fff}
+.cc-catalog-primary[data-slot=button]:hover:not(:disabled) {background:var(--cc-action-blue-hover)}
+
+/* Quotes list, editor, and the attendant's quote drawer. */
+.cx-admin-content .cc-quotes-page .cc-quote-list-total,
+.cx-admin-content .quote-total strong,
+.attendant-quote-cart>p strong {color:var(--cc-action-blue)}
+.cx-admin-content .quote-total {background:var(--cc-action-blue-soft);color:var(--cx-neutral-900);border-top-color:#d5e6f6}
+.cc-quotes-page button[data-slot=button][data-variant=default],
+.cc-quote-editor button[data-slot=button][data-variant=default],
+.attendant-quote-panel button[data-slot=button][data-variant=default] {background:var(--cc-action-blue);color:#fff}
+.cc-quotes-page button[data-slot=button][data-variant=default]:hover:not(:disabled),
+.cc-quote-editor button[data-slot=button][data-variant=default]:hover:not(:disabled),
+.attendant-quote-panel button[data-slot=button][data-variant=default]:hover:not(:disabled) {background:var(--cc-action-blue-hover)}
+.cc-quote-editor-results button[data-slot=button][data-variant=outline],
+.attendant-products button[data-slot=button][data-variant=outline],
+.attendant-detail-actions button[data-slot=button][data-variant=outline] {border-color:var(--cc-action-blue);color:var(--cc-action-blue)}
+.cc-quote-editor-results button[data-slot=button][data-variant=outline]:hover,
+.attendant-products button[data-slot=button][data-variant=outline]:hover,
+.attendant-detail-actions button[data-slot=button][data-variant=outline]:hover {background:var(--cc-action-blue-soft)}
+
+/* Sending and building a quote are commercial actions. Completion is green. */
+.cx-send:not(.cx-danger-action),
+.cx-context-primary,
+.attendant-compose button[data-slot=button][data-variant=default] {background:var(--cc-action-blue);color:#fff}
+.cx-send:not(.cx-danger-action):hover:not(:disabled),
+.cx-context-primary:hover:not(:disabled),
+.attendant-compose button[data-slot=button][data-variant=default]:hover:not(:disabled) {background:var(--cc-action-blue-hover)}
+.cx-send.cx-confirm-success,
+.attendant-chat-head button.cc-confirm-success[data-slot=button] {background:var(--cc-confirm-green);border-color:var(--cc-confirm-green);color:#fff}
+.cx-send.cx-confirm-success:hover:not(:disabled),
+.attendant-chat-head button.cc-confirm-success[data-slot=button]:hover:not(:disabled) {background:var(--cc-confirm-green-hover)}
+.cx-send.cx-danger-action {background:var(--cx-danger);color:#fff}

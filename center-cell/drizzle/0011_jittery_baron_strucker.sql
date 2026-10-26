@@ -1,0 +1,1 @@
+ALTER TABLE `app_users` ADD `presence` text DEFAULT 'available' NOT NULL;

@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {ceciAvailability} from '../lib/ceci-availability.ts';
+import {integrationView} from '../lib/integrations-view.ts';
+const steps=['erp','catalog','openai','internal','whatsapp','receiver'].map(id=>({id,label:id,done:!['whatsapp','receiver'].includes(id),detail:id+' pending',page:'integrations'}));
+const data={config:{enabled:false,model:'gpt-5.6-terra'},ceciPaused:true,activation:{ready:false,steps,completed:4,total:6,checks:{}},secrets:{OPENAI_API_KEY:true,UAZAPI_INSTANCE_TOKEN:true},catalog:{count:5251,synced:1},uazapiUrl:'',uazapiWebhookReady:true};
+const ai=ceciAvailability(data),view=integrationView(data);
+assert.equal(ai.label,'Validada');assert.equal(ai.internalReady,true);assert.equal(ai.tone,'ativa');
+assert.match(ai.detail,/produção/);
+assert.equal(view.connections.label,'2/3');assert.equal(view.connections.pending,1);assert.equal(view.steps.filter(s=>!s.done).length,2);
+assert.match(view.connections.detail,/WhatsApp/);
+assert.equal(ceciAvailability({...data,secrets:{OPENAI_API_KEY:false}}).label,'Configurar');
+assert.equal(ceciAvailability({...data,activation:{...data.activation,steps:steps.map(s=>s.id==='internal'?{...s,done:false}:s)}}).label,'Validar');
+const live={...data,ceciPaused:false,config:{...data.config,enabled:true},activation:{...data.activation,ready:true,steps:steps.map(s=>({...s,done:true}))}};
+assert.equal(ceciAvailability(live).label,'Ativa');assert.equal(integrationView(live).connections.label,'3/3');
+assert.equal(ceciAvailability({...live,ceciReply:{state:'retryable'}}).label,'Ativa');
+assert.equal(ceciAvailability(null).label,'Carregando');
+console.log('PASS: validated agent stays ready offline; connection counts use 3 services, not 6 production steps');

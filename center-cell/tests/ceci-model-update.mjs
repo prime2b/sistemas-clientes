@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {adoptCeciModel,CECI_DEFAULT_MODEL} from '../lib/server/ceci-model-update.ts';
+const sql=new DatabaseSync(':memory:');sql.exec('CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)');
+const original={model:'gpt-6-astra',enabled:false,name:'Ceci',instructions:'Tom personalizado',team:['A','B','C']};
+sql.prepare('INSERT INTO settings VALUES(?,?)').run('config',JSON.stringify(original));
+const db={prepare(query){return {bind(...args){return {first(){return sql.prepare(query).get(...args)||null;},run(){return {meta:{changes:Number(sql.prepare(query).run(...args).changes)}}}}}}},async batch(statements){sql.exec('BEGIN');try{const result=statements.map(s=>s.run());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}}};
+await adoptCeciModel(db);
+assert.deepEqual(JSON.parse(sql.prepare("SELECT value FROM settings WHERE key='config'").get().value),{...original,model:CECI_DEFAULT_MODEL});
+sql.prepare("UPDATE settings SET value=json_set(value,'$.model','future-explicit-choice') WHERE key='config'").run();
+await adoptCeciModel(db);
+assert.equal(JSON.parse(sql.prepare("SELECT value FROM settings WHERE key='config'").get().value).model,'future-explicit-choice');
+console.log('PASS: Terra applied once, preserves instructions and production pause, allows future changes');

@@ -1,0 +1,151 @@
+/* Automatic routines use the platform tokens. Geometry, behavior and the
+   WhatsApp screen keep their existing definitions. Manual tests are unaffected. */
+.pg-page.pg-automatic {
+  --pg-red: var(--cx-brand-600);
+  --pg-ink: var(--cx-neutral-900);
+  --pg-muted: var(--cx-neutral-600);
+  --pg-line: var(--cx-neutral-200);
+  background: var(--cx-neutral-50);
+  color: var(--cx-neutral-900);
+  font-family: var(--font-geist-sans), Inter, system-ui, sans-serif;
+}
+.pg-automatic .pg-top {border-color:var(--cx-neutral-200)}
+.pg-automatic .pg-top strong {font-size:16px;line-height:24px;font-weight:600}
+.pg-automatic .pg-top small,.pg-automatic .pg-back {color:var(--cx-neutral-600);font-size:12px;line-height:18px}
+.pg-automatic .pg-heading h1 {font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em;color:var(--cx-neutral-900)}
+.pg-automatic .pg-heading p {font-size:13px;line-height:19px;color:var(--cx-neutral-600)}
+.pg-automatic .pg-eyebrow {color:var(--cx-brand-600);font-size:12px;line-height:16px;font-weight:500}
+.pg-automatic .pg-isolated {background:var(--card);border-color:var(--cx-neutral-200);color:var(--cx-neutral-600);border-radius:var(--cx-radius-control)}
+.pg-automatic .pg-mode>button {border-radius:var(--cx-radius-control);color:var(--cx-neutral-600);font-size:13px;line-height:20px;font-weight:500}
+.pg-automatic .pg-mode>button:hover {background:var(--cx-neutral-100);color:var(--cx-neutral-900)}
+.pg-automatic .pg-mode>button[aria-pressed=true] {background:var(--cx-brand-50);border-color:var(--cx-brand-600);color:var(--cx-brand-600)}
+.pg-automatic .pg-mode>span,.pg-automatic .pg-footer {color:var(--cx-neutral-600);font-size:12px;line-height:18px}
+
+/* Panels, controls and selection follow the administrative workspace. */
+.pg-automatic :is(.ax-setup,.ax-content) {background:var(--card);border-color:var(--cx-neutral-200);border-radius:var(--cx-radius-card);box-shadow:none}
+.pg-automatic :is(.ax-start-area,.ax-setup>.ax-run-actions) {background:var(--card);border-color:var(--cx-neutral-200)}
+.pg-automatic :is(.ax-toolbar button,.ax-run-actions>div>button,.pg-button.secondary) {background:var(--card);border-color:var(--cx-neutral-200);border-radius:var(--cx-radius-control);color:var(--cx-neutral-900);font-size:12px;line-height:18px;font-weight:500}
+.pg-automatic :is(.ax-toolbar button,.ax-run-actions>div>button,.pg-button.secondary):hover:not(:disabled) {background:var(--cx-neutral-50);color:var(--cx-neutral-900)}
+.pg-automatic .ax-toolbar small {background:var(--cx-neutral-100);color:var(--cx-neutral-600)}
+.pg-automatic .ax-flow {color:var(--cx-neutral-300)}
+.pg-automatic .ax-flow>span {font-size:12px;line-height:18px;color:var(--cx-neutral-600)}
+.pg-automatic .ax-flow .current {color:var(--cx-brand-600);font-weight:600}
+.pg-automatic .ax-flow b {font-weight:500}
+.pg-automatic .ax-section-label {font-size:12px;line-height:16px;font-weight:600;letter-spacing:0;color:var(--cx-neutral-900)}
+.pg-automatic .ax-choice {background:var(--card);border-color:var(--cx-neutral-200);border-radius:var(--cx-radius-control);color:var(--cx-neutral-600)}
+.pg-automatic .ax-choice:hover {background:var(--cx-neutral-50)}
+.pg-automatic .ax-choice strong {font-size:13px;line-height:20px;font-weight:600;color:var(--cx-neutral-900)}
+.pg-automatic .ax-choice small {font-size:12px;line-height:18px;color:var(--cx-neutral-600)}
+.pg-automatic .ax-choice>i {border-color:var(--cx-neutral-300)}
+.pg-automatic .ax-choice.selected {background:var(--cx-brand-50);border-color:var(--cx-brand-600);color:var(--cx-brand-600)}
+.pg-automatic .ax-choice.selected strong {color:var(--cx-brand-900)}
+.pg-automatic .ax-choice.selected>i {border-color:var(--cx-brand-600);background:var(--card)}
+.pg-automatic :is(.ax-setup,.ax-drawer) label {font-size:12px;line-height:16px;font-weight:500;color:var(--cx-neutral-600)}
+.pg-automatic :is(.ax-setup,.ax-drawer) :is(input,select,textarea) {font-family:inherit;font-size:13px;line-height:20px;color:var(--cx-neutral-900);background:var(--card);border-color:var(--cx-neutral-200);border-radius:var(--cx-radius-control);padding:8px 11px}
+.pg-automatic :is(.ax-setup,.ax-drawer) :is(input,select) {min-height:38px}
+.pg-automatic :is(.ax-setup,.ax-drawer) :is(input,select,textarea):disabled {background:var(--cx-neutral-50)}
+.pg-automatic :is(.ax-workbench button,.ax-workbench a,.ax-setup input,.ax-setup select,.ax-drawer input,.ax-drawer select,.ax-drawer summary):focus-visible {outline:2px solid var(--ring);outline-offset:2px}
+.pg-automatic .pg-button {border-radius:var(--cx-radius-control);font-size:13px;line-height:20px;font-weight:500}
+.pg-automatic .ax-primary {background:var(--primary)!important;border-color:var(--primary)!important;color:var(--primary-foreground)!important}
+.pg-automatic .ax-primary:hover:not(:disabled) {background:color-mix(in srgb,var(--primary) 85%,var(--cx-brand-900))!important;border-color:color-mix(in srgb,var(--primary) 85%,var(--cx-brand-900))!important}
+.pg-automatic :is(.ax-brief,.ax-product) {border-color:var(--cx-neutral-200);color:var(--cx-neutral-900)}
+.pg-automatic :is(.ax-brief strong,.ax-product strong) {font-size:13px;line-height:20px;font-weight:600;color:var(--cx-neutral-900)}
+.pg-automatic :is(.ax-brief p,.ax-model-note,.ax-setup small,.ax-product span,.ax-persistence,.ax-run-actions>small,.ax-start-area>small) {font-size:12px;line-height:18px;color:var(--cx-neutral-600)}
+
+/* Tabs and the surrounding canvas belong to Center Cell; the phone itself
+   keeps the WhatsApp colors, typography, bubbles, icons and dimensions. */
+.pg-automatic .ax-tabs {border-color:var(--cx-neutral-200)}
+.pg-automatic .ax-tabs>button {color:var(--cx-neutral-600);font-size:13px;line-height:20px;font-weight:500}
+.pg-automatic .ax-tabs>button:hover:not(:disabled) {color:var(--cx-neutral-900);background:var(--cx-neutral-50)}
+.pg-automatic .ax-tabs>button[aria-selected=true] {color:var(--cx-brand-600);border-bottom-color:var(--cx-brand-600);font-weight:600}
+.pg-automatic .ax-tabs>button>i {background:var(--cc-confirm-green)}
+.pg-automatic .ax-chat-top {background:var(--cx-neutral-50);border-color:var(--cx-neutral-200)}
+.pg-automatic .ax-chat-top>span,.pg-automatic .ax-chat-top button {font-size:12px;line-height:18px;color:var(--cx-neutral-600)}
+.pg-automatic .ax-chat-top button {border-radius:var(--cx-radius-control)}
+.pg-automatic .ax-chat-top button[aria-pressed=true] {background:var(--card);border-color:var(--cx-neutral-200);color:var(--cx-brand-600)}
+.pg-automatic .ax-idle {background:var(--cx-neutral-50)}
+.pg-automatic .ax-idle-icon {background:var(--cx-brand-50);color:var(--cx-brand-600);border-radius:var(--cx-radius-card)}
+.pg-automatic .ax-idle h2 {font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em;color:var(--cx-neutral-900)}
+.pg-automatic .ax-idle>span,.pg-automatic .ax-journey {color:var(--cx-neutral-600);font-size:12px;line-height:18px}
+.pg-automatic .ax-idle>p {font-size:13px;line-height:20px;color:var(--cx-neutral-600)}
+.pg-automatic .ax-conversation .wa-preview-stage {background:var(--cx-neutral-50);border-color:var(--cx-neutral-200)}
+.pg-automatic .ax-transcript {background:var(--cx-neutral-50)}
+.pg-automatic .ax-transcript>p {color:var(--cx-neutral-600)}
+.pg-automatic .ax-transcript .pg-message {border-color:var(--cx-neutral-200);border-radius:var(--cx-radius-card);box-shadow:none}
+.pg-automatic .ax-transcript .pg-message.user {background:var(--cx-brand-50)}
+.pg-automatic .ax-transcript .pg-message.note {background:var(--cx-amber-50);border-color:var(--cx-amber-200)}
+.pg-automatic .ax-transcript .pg-message>p {font-size:14px;line-height:22px;color:var(--cx-neutral-900)}
+.pg-automatic .ax-transcript .pg-message>strong,.pg-automatic .ax-transcript .pg-message time {font-size:12px;line-height:18px;color:var(--cx-neutral-600)}
+
+/* Feedback uses the shared action and status palette. */
+.pg-automatic .ax-run-heading h2 {font-size:16px;line-height:24px;font-weight:600;color:var(--cx-neutral-900)}
+.pg-automatic .ax-run-heading>small {font-size:12px;line-height:18px;color:var(--cx-neutral-600)}
+.pg-automatic .ax-natural-note {background:var(--cx-brand-50);color:var(--cx-brand-600);border-radius:var(--cx-radius-control)}
+.pg-automatic .ax-natural-note strong {color:var(--cx-brand-900);font-size:13px;line-height:20px;font-weight:600}
+.pg-automatic .ax-natural-note p {font-size:12px;line-height:18px;color:var(--cx-neutral-600)}
+.pg-automatic .ax-stage {color:var(--cx-neutral-600);font-size:13px;line-height:20px}
+.pg-automatic .ax-text-button {color:var(--cc-action-blue);font-size:12px;line-height:18px;font-weight:500}
+.pg-automatic .ax-text-button:hover {text-decoration:underline;text-underline-offset:3px}
+.pg-automatic .ax-consumption {border-color:color-mix(in srgb,var(--cc-action-blue) 18%,var(--card));background:var(--cc-action-blue-soft);border-radius:var(--cx-radius-control)}
+.pg-automatic .ax-consumption strong {color:var(--cc-action-blue);font-size:13px;line-height:20px;font-weight:600}
+.pg-automatic .ax-consumption span {color:var(--cx-neutral-600);font-size:12px;line-height:18px}
+.pg-automatic .ax-consumption small {color:var(--cx-warning);font-size:12px;line-height:18px}
+.pg-automatic .ax-finished {background:var(--cc-confirm-green-soft);border-color:color-mix(in srgb,var(--cc-confirm-green) 20%,var(--card));color:var(--cc-confirm-green);font-size:12px;line-height:18px}
+.pg-automatic .ax-finished button {color:var(--cc-confirm-green);font-weight:500}
+.pg-automatic .pa-badge {border-radius:var(--cx-radius-pill);font-size:11px;line-height:16px;font-weight:600;background:var(--cx-neutral-100);color:var(--cx-neutral-600)}
+.pg-automatic .pa-badge:is(.passed,.completed) {background:var(--cc-confirm-green-soft);color:var(--cc-confirm-green)}
+.pg-automatic .pa-badge.failed {background:var(--cx-brand-50);color:var(--cx-danger)}
+.pg-automatic .pa-badge.running {background:var(--cc-action-blue-soft);color:var(--cc-action-blue)}
+.pg-automatic .pa-badge:is(.blocked,.inconclusive,.paused) {background:var(--cx-amber-50);color:var(--cx-warning)}
+.pg-automatic .ax-alert {border-color:color-mix(in srgb,var(--cx-danger) 25%,var(--card));background:var(--cx-brand-50);color:var(--cx-danger);border-radius:var(--cx-radius-control);font-size:13px;line-height:20px}
+.pg-automatic .ax-result-notice {border-color:var(--cx-amber-200);background:var(--cx-amber-50);color:var(--cx-warning);border-radius:var(--cx-radius-control)}
+
+/* Reports, tables and drawers retain all existing controls and content. */
+.pg-automatic :is(.ax-result h2,.ax-details h2,.ax-drawer h2) {color:var(--cx-neutral-900);font-size:20px;line-height:28px;letter-spacing:-.01em;font-weight:600}
+.pg-automatic :is(.ax-quality h3,.ax-details>h3,.ax-drawer h3) {color:var(--cx-neutral-900);font-size:16px;line-height:24px;font-weight:600}
+.pg-automatic :is(.ax-score,.ax-criterion,.ax-disclosure,.ax-usage-table th,.ax-usage-table td) {border-color:var(--cx-neutral-200)}
+.pg-automatic .ax-score {border-radius:var(--cx-radius-card)}
+.pg-automatic .ax-score>div {background:var(--cx-neutral-50);border-color:var(--cx-neutral-200)}
+.pg-automatic .ax-score strong {font-size:24px;line-height:32px;font-weight:600;color:var(--cx-neutral-900)}
+.pg-automatic .ax-score span {color:var(--cx-neutral-600);font-size:12px;line-height:18px}
+.pg-automatic .ax-criterion {font-size:13px;line-height:20px;color:var(--cx-neutral-900)}
+.pg-automatic :is(.ax-criterion>div>strong,.ax-criterion>strong) {font-weight:600}
+.pg-automatic :is(.ax-criterion>div>span,.ax-criterion p,.ax-result>p,.ax-details>p,.ax-quality>p,.ax-compare p,.ax-disclosure ol) {color:var(--cx-neutral-600);font-size:12px;line-height:18px}
+.pg-automatic .ax-criterion svg {color:var(--cx-neutral-500)}
+.pg-automatic .ax-criterion.pass svg {color:var(--cc-confirm-green)}
+.pg-automatic .ax-criterion.fail svg {color:var(--cx-danger)}
+.pg-automatic .ax-disclosure>summary {color:var(--cx-neutral-900);font-size:13px;line-height:20px;font-weight:500}
+.pg-automatic .ax-review-note {background:var(--cx-neutral-50);border-radius:var(--cx-radius-control)}
+.pg-automatic .ax-metrics {background:var(--cx-neutral-200);border-color:var(--cx-neutral-200);border-radius:var(--cx-radius-card)}
+.pg-automatic .ax-metrics>div {background:var(--cx-neutral-50)}
+.pg-automatic .ax-metrics dt,.pg-automatic .ax-evidence strong {font-size:12px;line-height:18px;color:var(--cx-neutral-600)}
+.pg-automatic .ax-metrics dd {font-size:14px;line-height:20px;font-weight:500;color:var(--cx-neutral-900)}
+.pg-automatic .ax-usage-table {font-variant-numeric:tabular-nums}
+.pg-automatic .ax-usage-table table {font-size:13px;line-height:20px;color:var(--cx-neutral-900)}
+.pg-automatic .ax-usage-table th {color:var(--cx-neutral-600);background:var(--cx-neutral-50);font-size:12px;line-height:18px;font-weight:500}
+.pg-automatic .ax-evidence pre {background:var(--cx-neutral-50);border-color:var(--cx-neutral-200);color:var(--cx-neutral-600);border-radius:var(--cx-radius-control);font:12px/18px var(--font-geist-mono),monospace}
+.pg-automatic .ax-backdrop {background:color-mix(in srgb,var(--cx-brand-900) 42%,transparent);backdrop-filter:blur(3px)}
+.pg-automatic .ax-drawer {background:var(--card);color:var(--cx-neutral-900);box-shadow:-12px 0 28px color-mix(in srgb,var(--cx-brand-900) 16%,transparent)}
+.pg-automatic .ax-drawer>header {border-color:var(--cx-neutral-200)}
+.pg-automatic .ax-drawer legend {font-size:13px;line-height:20px;font-weight:600;color:var(--cx-neutral-900)}
+.pg-automatic :is(.ax-drawer p,.ax-drawer-intro) {color:var(--cx-neutral-600);font-size:12px;line-height:18px}
+.pg-automatic .ax-history-row {border-bottom-color:var(--cx-neutral-200);border-radius:var(--cx-radius-control)}
+.pg-automatic .ax-history-row strong {color:var(--cx-neutral-900);font-size:13px;line-height:20px;font-weight:600}
+.pg-automatic .ax-history-row span {color:var(--cx-neutral-600);font-size:12px;line-height:18px}
+.pg-automatic .ax-history-row>svg {color:var(--cx-neutral-500)}
+.pg-automatic .ax-history-row:hover {background:var(--cx-neutral-50)}
+.pg-automatic .ax-history-row.selected {background:var(--cx-brand-50);border-color:var(--cx-neutral-200)}
+.pg-automatic .ax-empty-history {color:var(--cx-neutral-600)}
+.pg-automatic .pg-icon {color:var(--cx-neutral-600);border-radius:var(--cx-radius-control)}
+.pg-automatic .pg-icon:hover {background:var(--cx-neutral-100)}
+
+@media(max-width:700px) {
+  .pg-automatic .pg-top strong {font-size:14px;line-height:20px}
+  .pg-automatic .pg-heading h1,.pg-automatic .ax-idle h2 {font-size:20px;line-height:28px}
+  .pg-automatic .pg-mode>button,.pg-automatic .ax-tabs>button {font-size:12px;line-height:18px}
+  .pg-automatic .ax-toolbar button {font-size:12px;line-height:18px}
+  .pg-automatic .ax-setup-scroll {gap:12px}
+  .pg-automatic .ax-choice strong {font-size:13px;line-height:20px}
+  .pg-automatic .ax-score strong {font-size:20px;line-height:28px}
+  .pg-automatic .ax-journey {gap:7px;font-size:11px}
+}

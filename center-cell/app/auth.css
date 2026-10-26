@@ -1,0 +1,211 @@
+/* Access and account surfaces share the Center Cell palette in brand.css. */
+.cc-login,
+.cc-account-page,
+.cc-admin-settings,
+.cc-attendant-settings {
+  --cc-ink: #271c1e;
+  --cc-red: #c40c1b;
+  --cc-red-dark: #9e0917;
+  --cc-red-soft: #fff0f2;
+  --cc-line: #e9e1e2;
+  --cc-muted: #6e6264;
+  color: var(--cc-ink);
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+.cc-login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+  background: linear-gradient(90deg, #12040755, #18030625 55%, #18030655),
+    url('/centercell-brand-background.png') center / cover no-repeat, #180508;
+}
+.cc-login-shell {
+  width: min(960px, 100%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  border: 1px solid #ffffff2b;
+  border-radius: 24px;
+  box-shadow: 0 24px 80px #11030666;
+}
+.cc-login-cover {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 36px;
+  padding: 44px;
+  background: linear-gradient(145deg, #160508e8, #3e060dbd);
+  color: white;
+}
+.cc-login-cover > picture { display: block; }
+.cc-login-cover span {
+  color: #ffabb4;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.cc-login-cover h1 {
+  margin: 14px 0 18px;
+  font-size: clamp(32px, 3vw, 42px);
+  font-weight: 650;
+  letter-spacing: -.045em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.cc-login-cover p { margin: 0; color: #e6cdd1; font-size: 15px; line-height: 1.65; }
+.cc-login-cover small { color: #cfaeb4; font-size: 12px; }
+.cc-login-form { display: grid; align-items: center; padding: 40px; background: #fff; }
+.cc-login-card { width: 100%; min-width: 0; }
+.cc-login-access { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; color: var(--cc-muted); font-size: 12px; font-weight: 500; }
+.cc-login-card h2 { margin: 0 0 8px; font-size: 28px; line-height: 1.2; font-weight: 650; letter-spacing: -.035em; }
+.cc-login-card > p { margin: 0 0 24px; color: var(--cc-muted); font-size: 14px; line-height: 1.5; }
+.cc-login-card form { display: grid; gap: 16px; }
+.cc-login-card label,
+.cc-settings-card label { display: grid; gap: 7px; color: #45393b; font-size: 13px; font-weight: 600; }
+.cc-login-card input,
+.cc-settings-card input:not([type=checkbox]) {
+  height: 44px; padding: 0 12px; border: 1px solid #ded5d7;
+  border-radius: 8px; background: #fff; color: var(--cc-ink); font-size: 14px;
+}
+.cc-login-card input { height: 48px; font-weight: 400; }
+.cc-login-card input::placeholder { color: #918487; }
+.cc-login-card input:focus,
+.cc-settings-card input:focus { outline: 2px solid #cf3948; outline-offset: 1px; }
+.cc-login-card form > button,
+.cc-settings-card > button[data-slot=button],
+.cc-attendant-foot > button:first-child { background: var(--cc-red); color: #fff; }
+.cc-login-card form > button:hover,
+.cc-settings-card > button[data-slot=button]:hover,
+.cc-attendant-foot > button:first-child:hover { background: var(--cc-red-dark); }
+.cc-login-card form > button { height: 48px; justify-content: center; margin-top: 4px; font-size: 15px; border-radius: 8px; }
+.cc-password-input,
+.cc-password-generate { position: relative; display: flex; align-items: center; }
+.cc-password-input input { width: 100%; padding-right: 48px !important; }
+.cc-password-input button {
+  position: absolute;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: #75686a;
+}
+.cc-password-generate input { width: 100%; padding-right: 12px !important; border-radius: 8px 0 0 8px !important; }
+.cc-password-generate button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 42px;
+  border: 1px solid var(--cc-line);
+  border-left: 0;
+  background: #fff;
+  color: var(--cc-red);
+}
+.cc-password-generate button:last-child { border-radius: 0 8px 8px 0; }
+.cc-auth-error { padding: 10px 12px; border: 1px solid #efc8ce; border-radius: 8px; background: var(--cc-red-soft); color: #9e0917; font-size: 13px; }
+.cc-login-card .cc-password-input button { right: 3px; width: 44px; height: 44px; border-radius: 6px; }
+.cc-login-card .cc-password-input button:hover { background: #f6f2f3; }
+.cc-login-card .cc-password-input button:focus-visible { outline: 2px solid var(--cc-red); outline-offset: -2px; }
+.cc-login-help { display: grid; gap: 4px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--cc-line); color: var(--cc-muted); font-size: 12px; line-height: 1.5; }
+.cc-login-help strong { color: #45393b; font-weight: 600; }
+.cc-login-mobile-brand { display: none; }
+
+.cc-account-page { min-height: 100dvh; background: #faf8f8; }
+.cc-account-page > header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 82px;
+  padding: 0 clamp(20px, 4vw, 58px);
+  background: linear-gradient(90deg, #1a080cf2, #3d080fe0), url('/centercell-brand-background.png') center / cover;
+  color: #fff;
+}
+.cc-account-page > header img { width: 94px; height: 56px; padding: 4px 7px; border-radius: 6px; background: #fff; object-fit: contain; }
+.cc-account-page > header span { font-size: 15px; font-weight: 600; }
+.cc-account-shell { max-width: 1120px; margin: 0 auto; padding: 48px 24px 80px; }
+.cc-account-shell > div:first-child { margin-bottom: 26px; }
+.cc-account-shell .eyebrow { color: var(--cc-red); }
+.cc-account-shell h1 { margin: 6px 0; font-size: 32px; letter-spacing: -.03em; }
+.cc-account-shell p { color: var(--cc-muted); }
+.cc-account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 18px; align-items: start; }
+.cc-settings-card { min-width: 0; padding: 24px; border: 1px solid var(--cc-line); border-radius: 14px; background: #fff; box-shadow: 0 5px 18px #2710150a; }
+.cc-card-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; color: var(--cc-red); }
+.cc-card-heading > svg { flex: none; margin-top: 3px; }
+.cc-card-heading h2,
+.cc-card-heading h3 { margin: 0; color: var(--cc-ink); font-size: 18px; font-weight: 650; }
+.cc-card-heading p { margin: 4px 0 0; color: var(--cc-muted); font-size: 13px; line-height: 1.5; }
+.cc-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; margin-bottom: 18px; }
+.cc-form-grid label { min-width: 0; }
+.cc-settings-card input[readonly] { background: #faf8f8; color: var(--cc-muted); }
+.cc-hint,
+.cc-settings-card > small { display: block; margin: 0 0 18px; color: var(--cc-muted); font-size: 12px; line-height: 1.5; }
+.cc-avatar-editor { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+.cc-user-avatar { flex: none; border: 2px solid #f1dce0; border-radius: 50%; object-fit: cover; }
+.cc-user-initials { display: grid; place-items: center; background: #f7e6e9; color: #9b0d1a; font-size: 14px; font-weight: 700; }
+.cc-avatar-editor > div { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
+.cc-avatar-editor small { color: var(--cc-muted); font-size: 12px; }
+.cc-upload-button { display: inline-flex !important; align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid #e6cbd0; border-radius: 8px; color: #9e0c19 !important; cursor: pointer; font-size: 13px !important; }
+.cc-upload-button:hover { background: var(--cc-red-soft); }
+.cc-upload-button input { display: none; }
+.cc-text-button { color: var(--cc-red); font-size: 12px; text-decoration: underline; }
+.cc-session-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 25px; padding-top: 16px; border-top: 1px solid var(--cc-line); }
+.cc-session-actions button { display: inline-flex; align-items: center; gap: 6px; color: #8f1a25; font-size: 13px; }
+.cc-session-actions button:last-child { color: #765b60; }
+.cc-admin-settings { display: grid; gap: 25px; padding-bottom: 45px; }
+.cc-settings-tabs { width: fit-content; max-width: 100%; height: auto; min-height: 44px; gap: 4px; padding: 4px; border: 1px solid var(--cc-line); background: #fff; }
+.cc-settings-tabs [data-slot=tabs-trigger] { min-height: 38px; flex: none; gap: 8px; padding: 8px 16px; color: #665b5d; font-size: 14px; }
+.cc-settings-tabs [data-slot=tabs-trigger][data-state=active] { background: var(--cc-red-soft); color: var(--cc-red-dark); box-shadow: none; }
+.cc-admin-settings [data-slot=tabs-content] { min-width: 0; }
+.cc-team-settings { display: grid; gap: 25px; }
+.cc-team-settings .settings-grid { max-width: none; }
+.cc-team-settings .team-row strong { color: var(--cc-ink); font-size: 14px; }
+.cc-user-row-button { width: 100%; background: transparent; text-align: left; }
+.cc-user-row-button .cc-user-avatar { margin-right: 9px; }
+.cc-top-account { display: grid; place-items: center; border-radius: 50%; }
+.cc-attendant-settings { flex: 1; min-height: 0; overflow: auto; padding: 26px; }
+.cc-attendant-user-button { display: flex; align-items: center; gap: 10px; width: 100%; color: inherit; text-align: left; }
+.cc-section-heading { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 17px; }
+.cc-section-heading > svg { margin-top: 3px; color: var(--cc-red); }
+.cc-section-heading h2 { margin: 0; color: var(--cc-ink); font-size: 20px; }
+.cc-section-heading p { margin-top: 4px; color: var(--cc-muted); font-size: 14px; }
+.cc-attendant-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.cc-attendant-card { padding: 20px; }
+.cc-attendant-card .cc-form-grid { grid-template-columns: 1fr; }
+.cc-slot-icon { display: grid; place-items: center; width: 38px; height: 38px; overflow: hidden; border-radius: 10px; background: var(--cc-red-soft); color: var(--cc-red); }
+.cc-slot-icon img { width: 100%; height: 100%; object-fit: cover; }
+.cc-active-check { display: flex !important; align-items: center; gap: 8px; margin: 8px 0 20px; }
+.cc-active-check input { width: 16px; height: 16px; accent-color: var(--cc-red); }
+.cc-attendant-foot { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.cc-access-note { display: flex; gap: 8px; margin-top: 15px; color: var(--cc-muted); font-size: 13px; line-height: 1.5; }
+.cc-access-note svg { flex: none; color: var(--cc-red); }
+.cc-settings-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.cc-settings-links button { display: flex; align-items: center; gap: 9px; padding: 13px; border: 1px solid var(--cc-line); border-radius: 9px; color: #8c1823; font-size: 14px; text-align: left; }
+.cc-settings-links button svg:last-child { margin-left: auto; }
+.cc-settings-links button:hover { background: var(--cc-red-soft); }
+
+@media (max-width: 1100px) {
+
+  .cc-attendant-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .cc-login { padding: 24px 16px; }
+  .cc-login-shell { display: block; max-width: 420px; border-radius: 18px; }
+  .cc-login-cover { display: none; }
+  .cc-login-form { padding: 28px 24px; }
+  .cc-login-mobile-brand { display: block; margin-bottom: 24px; }
+  .cc-login-card h2 { font-size: 26px; }
+  .cc-login-card input { font-size: 16px; }
+  .cc-form-grid,
+  .cc-settings-links,
+  .cc-attendant-grid { grid-template-columns: 1fr; }
+  .cc-settings-card { padding: 19px; }
+  .cc-account-shell { padding: 28px 16px 60px; }
+  .cc-attendant-settings { padding: 12px; }
+  .cc-avatar-editor { align-items: flex-start; }
+  .cc-settings-tabs { display: flex; width: 100%; }
+  .cc-settings-tabs [data-slot=tabs-trigger] { min-width: 0; flex: 1; gap: 5px; padding-inline: 5px; font-size: 12px; }
+}

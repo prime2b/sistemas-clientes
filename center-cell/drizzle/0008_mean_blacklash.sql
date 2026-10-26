@@ -1,0 +1,1 @@
+ALTER TABLE `quotes` ADD `conversation_id` text DEFAULT '' NOT NULL;

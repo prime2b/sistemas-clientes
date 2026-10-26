@@ -1,0 +1,1 @@
+ALTER TABLE `messages` ADD `card_data` text DEFAULT '' NOT NULL;

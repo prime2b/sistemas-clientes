@@ -1,0 +1,99 @@
+/* Center Cell identity: deep charcoal and wine, vivid red, warm light surfaces. */
+:root {
+  --foreground: #271c1e;
+  --primary: #c40c1b;
+  --primary-foreground: #fff;
+  --ring: #c40c1b;
+  --border: #e9e1e2;
+  --input: #e9e1e2;
+  --muted: #f8f5f5;
+  --muted-foreground: #6e6264;
+  --sidebar: #170d10;
+  --sidebar-foreground: #f7e9eb;
+  --sidebar-primary: #c40c1b;
+  --sidebar-primary-foreground: #fff;
+  --sidebar-accent: #412026;
+  --sidebar-accent-foreground: #fff;
+  --sidebar-border: #623037;
+  --sidebar-ring: #ed5061;
+  --cx-brand-900: #271015;
+  --cx-brand-600: #c40c1b;
+  --cx-brand-50: #fff0f2;
+  --cx-accent: #d71325;
+  --cx-neutral-50: #faf8f8;
+  --cx-neutral-100: #f5f0f1;
+  --cx-neutral-200: #e9e1e2;
+  --cx-neutral-300: #d7cacc;
+  --cx-neutral-500: #75686a;
+  --cx-neutral-600: #685b5e;
+  --cx-neutral-900: #261b1d;
+  --cx-danger: #b40f20;
+}
+
+/* The supplied brand artwork stays in the navigation and access screen, away
+   from the dense operational text and conversation history. */
+.app-shell .nav,
+.attendant-nav,
+.mobile-sheet {
+  background: linear-gradient(180deg, rgba(20,7,11,.63), rgba(22,7,12,.91) 65%),
+    url('/centercell-brand-background.png') center / cover no-repeat,
+    #170d10;
+  color: #f8eef0;
+}
+.app-shell .nav {border-right: 1px solid #63212c}
+.app-shell .nav-label, .attendant-nav-label {color:#d8b4bb!important}
+.app-shell .nav nav button, .attendant-nav>button {color:#f2dce0}
+.app-shell .nav nav button:hover, .attendant-nav>button:hover {background:#ffffff1a;color:white}
+.app-shell .nav nav button.active, .attendant-nav>button.active {background:#cb0e20;color:white;box-shadow:inset 3px 0 #ff7885}
+.app-shell .nav-count, .attendant-nav>button b {background:#8c1020;color:#fff}
+.app-shell .brand, .attendant-brand {display:flex;align-items:center;justify-content:center;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 8px 24px #09030535}
+.app-shell .brand {height:104px;margin:0 0 19px;padding:5px 10px}
+.app-shell .brand img {display:block;width:100%;height:100%;object-fit:contain}
+.attendant-brand {height:104px;padding:5px 10px!important;margin-bottom:22px;flex:none}
+.attendant-brand img {width:100%;height:100%;object-fit:contain}
+.app-shell .workspace-switch {border-color:#8e4751;background:#240b13aa;margin-bottom:24px}
+.app-shell .workspace-switch small, .app-shell .user-row small {color:#d7b4bc}
+.app-shell .workspace-logo,.app-shell .user-avatar,.attendant-avatar {background:#ffe1e5;color:#8e1020}
+.app-shell .user-row,.attendant-nav-bottom {border-color:#8e4751}
+.attendant-user small {color:#d7b4bc!important}
+.attendant-user strong {color:white!important}
+.app-shell .top-avatar {background:#ffe4e7;color:#9f1020;border-color:#f1c6cc}
+.app-shell .topbar,.attendant-topbar {border-bottom-color:#e9e1e2}
+.app-shell .mobile-menu {color:#a70d1b}
+
+/* Operational feedback keeps its meaning while promotional accents follow the brand. */
+.cx-row.selected,.attendant-item.selected {background:#fff0f2}
+.cx-avatar,.attendant-contact-avatar {background:#f6e5e8;color:#83101d}
+.cx-channel {background:#c40c1b}
+.cx-status:not(.human):not(.closed),.attendant-status.open {background:#fff0f2;color:#8f0c1b}
+.cx-message-group.sent .cx-message-bubble,.attendant-message.agent,.attendant-message.assistant {background:#fff0f2}
+.cx-send:hover:not(:disabled),.cx-context-primary:hover:not(:disabled) {background:#a60918}
+.cx-admin-content .test-callout,.cx-admin-content .integration-intro {background:#fff0f2}
+.cx-admin-content .test-callout h3,.cx-admin-content .integration-intro strong {color:#8f0c1b}
+.cx-admin-content .rules-panel {background:#fff}
+.cx-admin-content .rule>svg,.cx-admin-content .routing-flow svg {color:#c40c1b}
+.cx-admin-content .icon-tile {background:#fff0f2;color:#c40c1b}
+.cx-admin-content .quote-total {border-color:#f5c5cc}
+.cx-admin-content .activation-step.done .activation-step-icon {background:#fff0f2;color:#a90c1a}
+.cx-admin-content .catalog-sync-status {border-color:#f3cbd0}
+.cx-admin-content .sync-status-icon {color:#c40c1b}
+.cx-admin-content .web-link-code {background:white}
+.attendant-welcome {background:#faf8f8}
+.attendant-quote-overlay {background:#1c070cb3}
+.attendant-quote-panel {box-shadow:-10px 0 28px #1c070c32}
+.mobile-sheet nav button:hover {background:#ffffff20;color:#fff}
+.mobile-sheet nav button:focus-visible {outline:2px solid #ff8190}
+.mobile-brand-logo {width:176px;height:99px;object-fit:contain;background:white;border-radius:9px;padding:5px}
+.access-denied {background:linear-gradient(90deg,#170a0eaf,#26070fbd),url('/centercell-brand-background.png') center/cover;color:#fff}
+.access-logo {width:min(300px,72vw);height:auto;background:white;border-radius:12px;padding:8px 14px;margin-bottom:10px}
+.access-denied h1 {color:white}
+.access-denied p {color:#f4dce1}
+
+@media(max-width:800px) {
+  .attendant-nav {background-position:center 40%;gap:5px}
+  .attendant-brand {width:93px;height:52px;margin:0 5px 0 0;padding:2px!important;border-radius:5px}
+  .attendant-nav>button.active {box-shadow:inset 0 -3px #ff7885}
+}
+@media(max-width:760px) {
+  .app-shell .nav {background-position:center}
+}

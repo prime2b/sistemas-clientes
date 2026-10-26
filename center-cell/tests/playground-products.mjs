@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {testProductPool,chooseTestProducts,openingChoices,similarTestModels} from '../lib/playground-products.ts';
+import {autoScenarios,autoScenario,materializeScenario,evaluateAutomatic} from '../lib/playground-scenarios.ts';
+const names=['TELA SAMSUNG A14 4G','TELA SAMSUNG A14 5G','BATERIA SAMSUNG A14','CONECTOR DE CARGA SAMSUNG A15','TAMPA TRASEIRA SAMSUNG A14','TELA IPHONE 13','TELA IPHONE 13 PRO','BATERIA IPHONE 11','BATERIA MOTO G20','TELA XIAOMI REDMI NOTE 12','PELICULA TELA SAMSUNG A14','CAPINHA IPHONE 13'];
+const rows=names.map((name,id)=>({id:id+1,name})),pool=testProductPool(rows);
+assert.ok(pool.some(p=>p.brand==='Samsung'));assert.ok(pool.some(p=>p.brand==='Apple'));assert.ok(pool.some(p=>p.brand==='Motorola'));assert.ok(pool.some(p=>p.brand==='Xiaomi'));assert.ok(new Set(pool.map(p=>p.part)).size>=4);assert.ok(pool.every(p=>!p.exampleName.includes('PELICULA')&&!p.exampleName.includes('CAPINHA')));
+const choices=chooseTestProducts(pool,autoScenarios.map(s=>s.kind),'fixture-variety');assert.ok(new Set(choices.filter(Boolean).map(c=>c.product.brand)).size>=4);assert.ok(choices.filter(Boolean).every(c=>pool.includes(c.product)));
+const samsung=chooseTestProducts(pool,['quote','catalog','edit','models'],'samsung-only',[],'Samsung');assert.ok(samsung.every(c=>c.product.brand==='Samsung'));assert.ok(similarTestModels(samsung[3].product,samsung[3].pair));
+assert.notEqual(samsung[3].product.key,samsung[3].pair.key);
+for(const [key,opening] of Object.entries(openingChoices)){const scene=materializeScenario(autoScenario('first-contact'),samsung[0],key,'seed');assert.equal(scene.opening,opening);assert.ok(scene.goal.includes(scene.productContext.model));assert.ok(!scene.opening.includes(scene.productContext.model));}
+const scene=materializeScenario(autoScenario('first-contact'),samsung[0],'oi','seed');const log=[{id:'1',role:'user',body:'Oi'},{id:'2',role:'assistant',body:'Oi! Como posso ajudar?'},{id:'3',role:'user',body:'Preciso de '+scene.productContext.part},{id:'4',role:'assistant',body:'Qual modelo?'},{id:'5',role:'user',body:scene.productContext.model},{id:'6',role:'assistant',body:'É para uso próprio ou sua assistência?'},{id:'7',role:'user',body:'Para minha assistência, sou lojista.'}];
+const checks=evaluateAutomatic(scene,log,[],false);assert.equal(checks.find(c=>c.id==='opening').status,'pass');assert.equal(checks.find(c=>c.id==='discovery').status,'pass');
+const shortcut=[{id:'x',role:'user',body:'Oi, sou lojista e preciso de '+scene.productContext.query}];assert.equal(evaluateAutomatic(scene,shortcut,[],true).find(c=>c.id==='discovery').status,'review');
+const modelScene=materializeScenario(autoScenario('models'),samsung[3]);const correct=pool.find(p=>p.key===samsung[3].pair.key);const wrong=samsung[3].product;
+const conversation=(p)=>[{id:'a',role:'user',body:modelScene.opening},{id:'b',role:'user',body:'Agora preciso para '+modelScene.secondProductContext.model},{id:'c',role:'assistant',body:'Aqui estão',created:2000,card_data:JSON.stringify({type:'products',items:[{productId:p.exampleId,name:p.exampleName,stock:4,unitCents:1000}],checkedAt:1000})}];
+assert.equal(evaluateAutomatic(modelScene,conversation(correct),[],true).find(c=>c.id==='variant').status,'pass');assert.equal(evaluateAutomatic(modelScene,conversation(wrong),[],true).find(c=>c.id==='variant').status,'fail');
+assert.ok(materializeScenario(autoScenario('quote'),null).unavailableReason);
+assert.equal(chooseTestProducts(pool,['quote'],'empty',[],'Realme')[0],null);
+const next=chooseTestProducts(pool,['quote'],'same-seed',[choices[0].product])[0];assert.notEqual(next.product.key,choices[0].product.key);
+console.log('PASS products: four brands, four part types, catalog-only requests, Samsung variants, fixed brand, varied openings, gradual disclosure and unavailable handling');
