@@ -4,8 +4,8 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 77.
-- Commit de origem: `e745dc69fc9e069c5fc470354c0b421c1d4370a7`.
+- Sites: versão 78.
+- Commit de origem: `91ebd05e353fe4bf91fad48151db8ff617f7e2de`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
@@ -15,6 +15,12 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 A Ceci identifica peça e modelo, consulta o catálogo e lista todos os produtos disponíveis com valores verificados. Depois encaminha imediatamente para a fila da central. A atendente assume na mesma interface, escolhe produtos e quantidades com o cliente, gera o orçamento e conclui o atendimento. Mensagens posteriores não reativam a Ceci sem devolução explícita à IA.
 
 Admin e atendentes usam o mesmo painel, mantendo seus logins e permissões. Há filtros de não lidas, não atribuídas, atribuídas, minhas conversas e finalizadas. A leitura é individual e a atribuição impede duas pessoas de assumir o mesmo atendimento. O visual inspirado no WhatsApp está limitado à área de atendimento.
+
+## Interface de Atendimento
+
+A versão 78 refaz somente a área de Atendimento com referências oficiais do WhatsApp: navegação compacta neutra, lista de conversas, filtros em cápsulas, balões, horários, controles e campo de mensagem em uma linha. Os recursos de orçamento, nota interna e resposta rápida ficam no menu +. A visão geral permanece acessível no cabeçalho e no estado vazio. Indicadores de enviada, entregue e lida dependem dos status registrados; não são presumidos.
+
+A configuração de menu das demais telas é preservada. Não há alterações no motor da Ceci, integrações, credenciais ou banco. Ver [referências, escopo e limites de verificação](docs/atendimento-whatsapp-ui.md). A versão 77 foi preservada antes deste redesign em [checkpoint/center-cell-v77-before-whatsapp-ui-2026-10-27](https://github.com/prime2b/sistemas-clientes/tree/checkpoint/center-cell-v77-before-whatsapp-ui-2026-10-27).
 
 ## Playground
 

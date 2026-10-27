@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300" fill="none" stroke="#8d9b8b" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" opacity=".17">
+<g transform="translate(24 28) rotate(-14)"><rect width="20" height="32" rx="4"/><path d="M6 5h8m-6 22h4"/></g>
+<path d="m106 21 4 9 10 1-8 7 2 10-9-5-9 5 2-10-8-7 11-1 5-9Z"/>
+<g transform="translate(176 26) rotate(12)"><path d="M0 2h30v21H12L4 30v-7H0Z"/><path d="M7 9h16M7 15h10"/></g>
+<path d="M277 24c-9-14-22 0-12 10l13 12 12-13c8-12-7-21-13-9Z"/>
+<g transform="translate(350 28) rotate(18)"><path d="m0 14 30-14-10 29-7-11L0 14Zm13 4L30 0"/></g>
+<g transform="translate(68 99) rotate(9)"><path d="M0 3h25v22H0ZM0 3l13 10L25 3"/></g>
+<path d="M146 97c10-9 23-2 23 9 0 7-5 10-10 12l-6 10-1-10c-14-2-17-14-6-21Z"/>
+<g transform="translate(240 93) rotate(-18)"><circle cx="10" cy="10" r="10"/><path d="M5 13q5 7 10 0m-10-6h.1m10 0h.1"/></g>
+<g transform="translate(325 101) rotate(10)"><path d="M0 5h28v21H0zM0 11h28M9 5V0h10v5m-5 6v15"/></g>
+<g transform="translate(20 175) rotate(-10)"><path d="m0 3 13-3 13 3v13c-4 8-9 12-13 14C7 27 3 23 0 16Z"/><path d="m7 14 4 4 9-10"/></g>
+<g transform="translate(111 174) rotate(16)"><path d="m0 4 20-4 9 23-20 5Z"/><path d="m5 8 13-3M7 14l10-2m-8 8 12-3"/></g>
+<path d="m206 169 4 8 9 1-6 6 1 9-8-4-8 4 2-9-7-6 9-1 4-8Z"/>
+<g transform="translate(275 178) rotate(-12)"><path d="M1 11a14 14 0 0 1 28 0v12h-7V12h7M1 12h7v11H1Z"/></g>
+<g transform="translate(365 169) rotate(10)"><rect width="18" height="30" rx="4"/><path d="M5 5h8m-6 20h4"/></g>
+<g transform="translate(55 252) rotate(12)"><path d="M0 0h28v20H12l-8 7v-7H0Z"/><circle cx="7" cy="10" r=".8"/><circle cx="14" cy="10" r=".8"/><circle cx="21" cy="10" r=".8"/></g>
+<g transform="translate(159 253) rotate(-9)"><path d="M0 7h30v18H0zM7 7l4-7h9l4 7"/><circle cx="15" cy="16" r="5"/></g>
+<path d="M267 249c-8-12-19 0-11 9l11 10 10-11c7-10-5-18-10-8Z"/>
+<g transform="translate(344 255) rotate(-20)"><path d="m0 9 26-9-9 26-5-10L0 9Zm12 7L26 0"/></g>
+<path d="m47 87 3 4m72 46 4-3m84-73 4 2m84 79 3 4M30 247l3-3m192-11 3 4m90-17 4-2m65-139 3 3"/>
+<g stroke-width="1"><circle cx="66" cy="40" r="2"/><circle cx="223" cy="141" r="2"/><circle cx="83" cy="211" r="2"/><circle cx="318" cy="61" r="2"/><circle cx="181" cy="294" r="2"/></g>
+</svg>

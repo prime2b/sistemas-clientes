@@ -1,0 +1,7 @@
+import type {SVGProps} from 'react';
+
+/** Local UI glyphs, drawn on the same 24px grid as the conversation controls. */
+export function WhatsAppGlyph({name,...props}:SVGProps<SVGSVGElement>&{name:'more'|'search'|'send'|'plus'|'smile'|'back'|'archive'|'close'|'check'|'checks'|'person'|'chat'}){
+ const paths={more:<><circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none"/></>,search:<><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 4.2 4.2"/></>,send:<path d="m3 3 18 9L3 21l3-9-3-9Zm3 9h15"/>,plus:<path d="M12 4v16M4 12h16"/>,smile:<><circle cx="12" cy="12" r="9"/><path d="M7.5 14.5c1 3.3 8 3.3 9 0"/><circle cx="8.5" cy="9" r=".8" fill="currentColor"/><circle cx="15.5" cy="9" r=".8" fill="currentColor"/></>,back:<path d="m10 5-7 7 7 7M3 12h18"/>,archive:<><path d="M4 8h16v12H4zM3 4h18v4H3zM12 10v7m-3-3 3 3 3-3"/></>,close:<path d="m6 6 12 12M6 18 18 6"/>,check:<path d="m5 12 4 4L20 5"/>,checks:<><path d="m1.5 12 4 4L16.5 5M10 13l3 3L24 5"/></>,person:<><circle cx="12" cy="8" r="4"/><path d="M3.5 22v-3a8.5 8.5 0 0 1 17 0v3"/></>,chat:<path d="M21 11.5a9 9 0 0 1-9.5 9L3 22l1.5-7A9 9 0 1 1 21 11.5Z"/>};
+ return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>;
+}
