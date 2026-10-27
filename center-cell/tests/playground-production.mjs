@@ -31,7 +31,8 @@ globalThis.fetch=async(input,init)=>{const url=new URL(String(input));
  if(url.hostname==='api.openai.com'){
   const p=JSON.parse(init.body);
   if(modelFailure)return Response.json({error:{code:'insufficient_quota'}},{status:429});
-  if(p.instructions.startsWith('Você representa')){clientTurn++;return output({message:clientTurn===1?'Quero duas unidades do código 1000.':'Pode fechar, quero comprar.',done:false,expectedProductId:clientTurn===1?1000:null,expectedQuantity:clientTurn===1?2:null});}
+  if(p.instructions.includes('na continuação com uma atendente humana')){const phase=JSON.parse(p.input).phase;return output({message:phase==='delivery'?'Vou retirar na loja.':phase==='payment'?'Prefiro Pix.':'Pode concluir assim, sim.'});}
+ if(p.instructions.startsWith('Você representa')){clientTurn++;return output({message:clientTurn===1?'Quero duas unidades do código 1000.':'Pode fechar, quero comprar.',done:false,expectedProductId:clientTurn===1?1000:null,expectedQuantity:clientTurn===1?2:null});}
   if(p.instructions.startsWith('Você avalia')){const log=JSON.parse(p.input).messages;return output({result:'pass',summary:'Atendimento claro e contextual.',findings:[{criterion:'naturalidade',result:'pass',detail:'A resposta atende a solicitação.',messageIds:[log.filter(m=>m.role==='assistant').at(-1).id]}]});}
   const messages=p.input.filter(m=>m.role==='user');const last=JSON.parse(messages.at(-1).content);
   let name='responder_cliente',args={texto:'Separei as opções para você.',proximoPasso:'Qual você prefere?',contexto:{fatos:[],pendencia:'',proximaAcao:''}};
@@ -68,7 +69,7 @@ let detail=await runner.automaticDetail(first.id,owner);assert.equal(detail.stat
 assert.equal(await runner.automaticDetail(first.id,'other-admin'),null);
 const second=await runner.startAutomatic(owner,args(['quote']));clientTurn=0;await drain(second.id);detail=await runner.automaticDetail(second.id,owner);
 assert.equal(detail.cases[0].result,'passed',JSON.stringify(detail.cases[0]));assert.equal((await core.one('SELECT COUNT(*) AS n FROM quotes')).n,0);assert.equal(outbound,0);assert.equal((await core.config()).enabled,false);assert.equal(await core.getSetting('ceci:manualPause'),true);
-const exported=await runner.exportAutomatic(second.id,owner);assert.ok(exported.cases[0].messages.length);assert.ok(exported.cases[0].events.some(e=>e.kind==='prepare'));assert.equal(detail.messages.filter(m=>m.role==='user').length,3);
+const exported=await runner.exportAutomatic(second.id,owner);assert.ok(exported.cases[0].messages.length);assert.ok(exported.cases[0].events.some(e=>e.kind==='prepare'));assert.equal(detail.messages.filter(m=>m.role==='user').length,6);assert.equal(detail.cases[0].sale.step,'completed');assert.ok(detail.messages.some(m=>m.role==='agent'));
 // Sequential battery uses independent conversations and exports every transcript.
 clientTurn=0;const battery=await runner.startAutomatic(owner,args(['catalog','quote']));await drain(battery.id);const batchExport=await runner.exportAutomatic(battery.id,owner);assert.equal(batchExport.state,'completed');assert.ok(batchExport.cases.every(c=>c.result==='passed'));assert.notEqual(batchExport.cases[0].conversationId,batchExport.cases[1].conversationId);assert.ok(batchExport.cases.every(c=>c.messages.length&&c.events.length));
 // A concurrent request cannot advance a leased run.
@@ -105,6 +106,7 @@ const normalFetch=globalThis.fetch;let customerStep=0,firstAssistantSeen=false;
 const naturalFetch=async(input,init)=>{
  const url=new URL(String(input));if(url.hostname!=='api.openai.com')return normalFetch(input,init);
  const p=JSON.parse(init.body);
+ if(p.instructions.includes('na continuação com uma atendente humana')){const phase=JSON.parse(p.input).phase;return output({message:phase==='delivery'?'Vou retirar na loja.':phase==='payment'?'Prefiro Pix.':'Pode concluir assim, sim.'});}
  if(p.instructions.startsWith('Você representa')){
   customerStep++;
   assert.ok(p.input.includes(naturalProduct.model),'only the customer simulator knows the reserved objective');
@@ -140,8 +142,8 @@ const mixed=await runner.startAutomatic(owner,args(['quote','catalog','edit','ty
 const noBrand=await runner.startAutomatic(owner,{...args(['quote']),productBrand:'Realme'});await drain(noBrand.id);assert.equal((await runner.getAutomatic(noBrand.id)).cases[0].result,'unavailable');
 console.log('PASS natural journey: greeting only, no hidden context leaked, Samsung discovery across separate messages, catalog, exact quote, purchase handoff, mixed-brand batch and absent-brand handling');
 
-const {autoScenarios}=await import('../lib/playground-scenarios.ts');const allId=crypto.randomUUID();const allResponse=await route.POST(new Request('https://fixture.test/api/playground',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:'start',id:allId,scenarios:autoScenarios.map(s=>s.id)})}));assert.equal(allResponse.status,200);assert.equal((await allResponse.json()).run.cases.length,11);await runner.controlAutomatic(allId,owner,'stop');
-console.log('PASS API: all 11 scenarios accepted in one battery');
+const {autoScenarios}=await import('../lib/playground-scenarios.ts');const allId=crypto.randomUUID();const allResponse=await route.POST(new Request('https://fixture.test/api/playground',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:'start',id:allId,scenarios:autoScenarios.map(s=>s.id)})}));assert.equal(allResponse.status,200);assert.equal((await allResponse.json()).run.cases.length,12);await runner.controlAutomatic(allId,owner,'stop');
+console.log('PASS API: all 12 scenarios accepted in one battery');
 
 // Exercise the exact minified production handler, not only TypeScript source.
 modelFailure=false;clientTurn=0;

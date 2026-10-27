@@ -13,7 +13,7 @@ export function productMessage(intro:string,items:ProductOption[],checkedAt:numb
   if(!items.length||items.length>3||items.some(item=>!Number.isSafeInteger(item.unitCents)||item.unitCents<=0||!Number.isFinite(item.stock)||item.stock<=0))throw new Error('UNVERIFIED_PRODUCT_OPTIONS');
   const card:ProductCard={type:'products',intro,checkedAt,items,...(closing?{closing}:{})};
   const lines=items.map(item=>`${item.name}\nCód. ${item.productId} · ${item.stock} em estoque · ${brl(item.unitCents)} un.`);
-  const body=[intro,...lines,'Valores e estoque consultados agora. A cotação não reserva produtos.',closing].filter(Boolean).join('\n\n');
+  const body=[intro,...lines,'Conferi os preços e o estoque agora. Os produtos ainda não estão reservados.',closing].filter(Boolean).join('\n\n');
   if(body.length>4000)throw new Error('MESSAGE_TOO_LONG');
   return {body,card};
 }
@@ -28,7 +28,7 @@ export function catalogMessages(intro:string,items:CatalogItem[],checkedAt:numbe
     const tail=index===chunks.length-1?closing:'';
     const card:CatalogCard={type:'catalog',intro:heading,closing:tail||undefined,checkedAt,part:index+1,parts:chunks.length,total:items.length,items:chunk};
     const lines=chunk.map(item=>`${item.name}\nCód. ${item.productId} · ${item.status==='available'?`${item.stock} em estoque · ${brl(item.unitCents!)} un.`:item.status==='unavailable'?'Indisponível no momento':'Valor ou estoque não confirmado'}`);
-    const body=[heading,...lines,index===chunks.length-1?`Encontrei ${items.length} ${items.length===1?'produto':'produtos'} no catálogo. Valores e estoque consultados agora para as opções confirmadas. A cotação não reserva produtos.`:'',tail].filter(Boolean).join('\n\n');
+    const body=[heading,...lines,index===chunks.length-1?`Encontrei ${items.length} ${items.length===1?'produto':'produtos'} no catálogo. Conferi os preços e o estoque das opções confirmadas. Os produtos ainda não estão reservados.`:'',tail].filter(Boolean).join('\n\n');
     if(body.length>4000)throw new Error('MESSAGE_TOO_LONG');
     return {body,card};
   });
@@ -38,10 +38,10 @@ export function quoteMessage(id:string,draft:QuoteDraft,profile:'lojista'|'consu
   const proposed=introduction.trim().replace(/\s+/g,' ').slice(0,options?.contextual?1600:160);
   const intro=options?.contextual?proposed:proposed&&!/\d|R\$|estoque|disponib|compatib|prazo|entrega|mercado\s*phone|\berp\b|\bapi\b|custo/i.test(proposed)
     ? proposed
-    : profile==='lojista'?'Segue o orçamento com os valores de lojista conferidos agora:':'Segue o orçamento com os valores conferidos agora:';
+    : profile==='lojista'?'Aqui está seu orçamento com os preços para lojista:':'Aqui está seu orçamento:';
   const card:QuoteCard={type:'quote',intro,id,checkedAt:draft.checkedAt,status:'awaiting',items:draft.lines.map(line=>({productId:line.productId,name:line.name,quantity:line.quantity,unitCents:line.unitCents,totalCents:line.totalCents})),totalCents:draft.totalCents,...(options?.closing?{closing:options.closing}:{})};
   const lines=draft.lines.map(line=>`${line.quantity} × ${line.name}\n${brl(line.unitCents)} un. · Subtotal ${brl(line.totalCents)}`);
-  const body=[intro,`*Orçamento #${shortQuoteId(id)}*`,...lines,`*Total: ${brl(draft.totalCents)}*`,'Valores e disponibilidade confirmados agora. Este orçamento não reserva produtos.',options?.contextual?options.closing:'Quer ajustar algum item ou chamar uma atendente para concluir?'].filter(Boolean).join('\n\n');
+  const body=[intro,`*Orçamento #${shortQuoteId(id)}*`,...lines,`*Total: ${brl(draft.totalCents)}*`,'Conferi os preços e o estoque agora. Os produtos ainda não estão reservados.',options?.contextual?options.closing:'Quer mudar alguma coisa ou seguir com a compra?'].filter(Boolean).join('\n\n');
   if(body.length>4000)throw new Error('MESSAGE_TOO_LONG');
   return {body,card};
 }

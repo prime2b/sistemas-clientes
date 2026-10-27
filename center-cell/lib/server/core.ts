@@ -1,3 +1,4 @@
+import {selectAttendantIndex} from '../attendant-routing';
 import {automaticEvidence} from './playground-evidence';
 import {initialProductQueries} from './ceci-search';
 import {adoptCeciModel,CECI_DEFAULT_MODEL} from './ceci-model-update';
@@ -67,11 +68,9 @@ export async function routeToAttendant(id:string,teamValue:unknown){
   const placeholders=team.map(()=>'?').join(',');
   const rows=await all(`SELECT assigned,COUNT(*) AS total FROM conversations WHERE status='human' AND channel!='test' AND assigned IN (${placeholders}) GROUP BY assigned`,...team);
   const load=new Map(rows.map(row=>[String(row.assigned),Number(row.total||0)]));
-  const minimum=Math.min(...team.map((name,index)=>eligible.has(index)?load.get(name)||0:Infinity));
   const cursor=Number((await getSetting('attendantRouting'))?.index??-1);
-  const chosen=Array.from({length:team.length},(_,step)=>(cursor+1+step)%team.length)
-    .map(index=>({index,name:team[index]}))
-    .find(item=>eligible.has(item.index)&&(load.get(item.name)||0)===minimum)!;
+  const index=selectAttendantIndex(team,[...eligible],Object.fromEntries(load),cursor)!;
+  const chosen={index,name:team[index]};
   await run("UPDATE conversations SET status='human',assigned=?,updated=? WHERE id=?",chosen.name,Date.now(),id);
   await setting('attendantRouting',{index:chosen.index,at:Date.now()});
   return chosen.name;
@@ -238,7 +237,7 @@ export async function chatReply(id:string,options?:{signal?:AbortSignal;target?:
     await audit('catalog',{query,items,total:candidates.length,checkedAt});
     return {items,total:candidates.length,checkedAt};
   };
-  const signature=JSON.stringify(['purchase-confirmation-v2',cfg.model,cfg.name,cfg.greeting,cfg.instructions,cfg.handoff]);
+  const signature=JSON.stringify(['conversational-sale-v3',cfg.model,cfg.name,cfg.greeting,cfg.instructions,cfg.handoff]);
   const stored=await getSetting('ceci:progress:'+id);
   const checkpoint=stored?.target===target&&stored?.deletedCount===deletedCount&&stored?.signature===signature&&Date.now()-stored.at<10*60_000?stored.value as AgentCheckpoint:undefined;
   const lastUser=messages.filter(m=>m.role==='user').at(-1);

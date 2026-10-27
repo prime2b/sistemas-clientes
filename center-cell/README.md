@@ -4,11 +4,17 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 73.
-- Commit de origem: `6aa3f7a87f20114ada47fc0253076505766c255f`.
+- Sites: versão 74.
+- Commit de origem: `a4bb8a83d4212edfc658e759b9fe0314b6c0cd51`.
 - Aplicação: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Produção: modelo configurado `gpt-5.6-terra`.
 - Novos testes econômicos do playground: `gpt-5.6-luna`. Homologação permite usar o modelo de produção para a Ceci.
+
+## Atendimento completo no playground
+
+As rotinas comerciais continuam após a Ceci: recebimento no painel de uma das três atendentes simuladas, combinação de retirada/entrega e pagamento, confirmação final e venda simulada concluída. Há condução automática, modo manual e cenário de equipe indisponível. As mensagens automáticas da atendente usam textos contextuais sem gasto extra de IA; cliente e avaliador permanecem no modo econômico. Consulte [o guia](docs/playground-vendas.md).
+
+A voz da Ceci foi ajustada para linguagem mais simples, mantendo nomes oficiais dos produtos e as regras de consulta. Nenhuma venda, cobrança ou envio real é realizado pelo playground.
 
 ## Estrutura
 

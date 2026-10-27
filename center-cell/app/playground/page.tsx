@@ -4,6 +4,7 @@ import CeciPlayground from './playground';
 import './playground.css';
 import './whatsapp-phone.css';
 import './automatic-theme.css';
+import './attendant-preview.css';
 export const dynamic='force-dynamic';
 export const metadata={title:'Playground da Ceci · Center Cell'};
 export default async function Page(){

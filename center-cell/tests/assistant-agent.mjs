@@ -11,3 +11,5 @@ for(const tool of assistantTools){assert.equal(tool.strict,true);strictSchema(to
 assert.match(safeToolError(new Error('INSUFFICIENT_OR_UNAVAILABLE_STOCK')).error,/pedido anterior foi preservado/);
 assert.doesNotMatch(safeToolError(new Error('ERP_NETWORK_ERROR')).error,/MercadoPhone/i);
 console.log('PASS: saved settings, conversational instructions, transactional restrictions and strict tool schemas');
+
+assert.match(prompt,/linguagem de sistema e formalidades/);assert.match(prompt,/termos técnicos somente quando forem necessários/);assert.match(prompt,/Mantenha nomes oficiais, códigos, tecnologias e variantes nos cards/);
