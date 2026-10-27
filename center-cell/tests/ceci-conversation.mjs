@@ -134,3 +134,10 @@ const batch=await runCeciAgent({config:cfg,context:ctx,memory:emptyCeciMemory(),
 }});
 assert.equal(batchSearches.length,3);assert.equal(batchCheckpoint.step,1);assert.equal(batch.memory.products.length,2);
 console.log('PASS: conversation memory, cross-turn options, partial edits, removal, failures, restoration, history, safeguards, handoff and inbound batching');
+
+for(const text of ['Temos 3 em estoque.','Há três unidades em estoque.','Estoque: 12','Estoque total de 20 peças.','Temos 3 peças.','Restam 4 unidades disponíveis.'])assert.match(replyViolation(text,true),/interno/,text);
+assert.equal(replyViolation('Esse produto está disponível.',true),'');assert.equal(replyViolation('Seu orçamento inclui 2 unidades.',true),'');
+const inspected=await run([['buscar_catalogo',{busca:'frontal'}],['consultar_opcoes',{productIds:[101],exibirCards:true}],finish('Encontrei esta opção disponível.')]);
+const toolOutputs=inspected.consumed.flatMap(input=>input.filter(row=>row.type==='function_call_output').map(row=>JSON.parse(row.output)));
+assert.ok(!toolOutputs.some(row=>row.items?.some(item=>'stock' in item)),'model receives availability but never numeric inventory');assert.equal(inspected.result.products[0].stock,20,'internal stock validation is preserved');
+console.log('PASS inventory privacy: numeric stock cannot appear in Ceci prose or model tool results; availability and ordered quantities remain allowed');

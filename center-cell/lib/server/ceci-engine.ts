@@ -70,7 +70,7 @@ export async function runCeciAgent(args:{config:AssistantConfig;context:Assistan
   if(catalogFlow&&catalog?.length)return catalogHandoff(catalogQuery||'Pedido do cliente');
   for(let step=resumed?.step||0;step<12;step++){
     await ports.active();
-    const output=await ports.respond(buildAssistantInstructions(config,context),input,acceptedQuote?assistantTools.filter(tool=>tool.name==='encaminhar_humano'):catalogFlow?assistantTools.filter(tool=>!['consultar_e_orcar','recuperar_orcamento','consultar_opcoes','definir_perfil'].includes(tool.name)):assistantTools);
+    const output=await ports.respond(buildAssistantInstructions(config,context),input.map(row=>{if(row.type!=='function_call_output'||typeof row.output!=='string')return row;try{return {...row,output:JSON.stringify(JSON.parse(row.output),(key,value)=>key==='stock'?undefined:value)};}catch{return row;}}),acceptedQuote?assistantTools.filter(tool=>tool.name==='encaminhar_humano'):catalogFlow?assistantTools.filter(tool=>!['consultar_e_orcar','recuperar_orcamento','consultar_opcoes','definir_perfil'].includes(tool.name)):assistantTools);
     await ports.active();
     input.push(...output);
     const calls=output.filter(item=>item.type==='function_call');
@@ -121,7 +121,7 @@ export async function runCeciAgent(args:{config:AssistantConfig;context:Assistan
           mergeProducts(memory,found.items.map(p=>({id:p.productId,name:p.name})));
           // A focused inspection must not replace the full list requested in this turn.
           if(a.exibirCards&&!catalog?.length){catalog=undefined;catalogQuery=undefined;products=found.items.filter(p=>p.available).map(({available,...item})=>item);memory.lastOptions=products.map(p=>p.productId);}
-          result={items:found.items,checkedAt,note:'Consulta atual. Cards só apresentarão itens disponíveis. A descrição oficial pode esclarecer aro/cor; não é laudo de compatibilidade. Sem ficha técnica, não compare desempenho.'};
+          result={items:found.items.map(({stock,...item})=>item),checkedAt,note:'O saldo numérico é interno; informe somente a disponibilidade. Consulta atual. Cards só apresentarão itens disponíveis. A descrição oficial pode esclarecer aro/cor; não é laudo de compatibilidade. Sem ficha técnica, não compare desempenho.'};
         }else if(call.name==='definir_perfil'){
           const source=evidence.get(String(a.mensagemId));
           if(!source||!['lojista','consumidor_final'].includes(a.perfil))throw new Error('PROFILE_EVIDENCE_REQUIRED');

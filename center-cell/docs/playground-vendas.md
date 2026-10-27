@@ -35,3 +35,8 @@ O aceite pode incluir o código e a quantidade exatos do orçamento, junto com r
 A atendente não publica mensagens vazias. Uma resposta repetida sem mudança de etapa é interrompida antes de criar outra mensagem. Se um teste anterior já tiver um aceite válido registrado depois do mesmo orçamento, a rotina retoma a partir dessa evidência, sem reenviar nem consultar o modelo novamente. O histórico anterior não é apagado.
 
 Verificação: regressão do texto do print (código, duas unidades, aceite, retirada e Pix), fluxo até a venda simulada com um orçamento, retomada, bloqueio de duplicação, recibos/visibilidade do celular e renderização dos indicadores de digitação. Serviços de IA, ERP e envio são substituídos por fixtures nos testes isolados; isso não representa uma nova homologação com os provedores reais.
+
+
+## Saldo de estoque
+
+As mensagens da Ceci e os cards de produtos mostram apenas disponibilidade, sem divulgar quantas peças existem em estoque. A mesma apresentação vale no WhatsApp e no playground. O saldo numérico continua disponível internamente para validar a quantidade solicitada e impedir orçamento sem estoque suficiente. Quantidades do pedido e do orçamento permanecem visíveis. A consulta de opções enviada ao modelo não contém o campo numérico de estoque, e a redação da agente também é verificada contra divulgação de saldo. Históricos de mensagens antigas não são reescritos.

@@ -8,7 +8,7 @@ export default function ChatCard({card,onApprove}:{card:ChatCardData;onApprove?:
   if(card.type==='catalog')return <><div className="cc-chat-card cc-product-card" aria-label={`Produtos encontrados, parte ${card.part} de ${card.parts}`}>
     {card.items.map(item=><div className="cc-card-item" key={item.productId}>
       <span className="cc-card-product-icon"><Smartphone size={19}/></span>
-      <span className="cc-card-product-info"><strong>{item.name}</strong><small>Cód. {item.productId} · {item.status==='available'?`${item.stock} em estoque`:item.status==='unavailable'?'Indisponível no momento':'Consulta pendente'}</small></span>
+      <span className="cc-card-product-info"><strong>{item.name}</strong><small>Cód. {item.productId} · {item.status==='available'?'Disponível':item.status==='unavailable'?'Indisponível no momento':'Consulta pendente'}</small></span>
       <strong className="cc-card-price">{item.status==='available'&&item.unitCents!==null?money(item.unitCents):'—'}</strong>
     </div>)}
     <div className="cc-card-freshness">{card.part} de {card.parts} · {card.total} {card.total===1?'produto encontrado':'produtos encontrados'} · consulta às {checked(card.checkedAt)}</div>
@@ -16,7 +16,7 @@ export default function ChatCard({card,onApprove}:{card:ChatCardData;onApprove?:
   if(card.type==='products')return <><div className="cc-chat-card cc-product-card" aria-label="Produtos consultados">
     {card.items.map(item=><div className="cc-card-item" key={item.productId}>
       <span className="cc-card-product-icon"><Smartphone size={19}/></span>
-      <span className="cc-card-product-info"><strong>{item.name}</strong><small>Cód. {item.productId} · {item.stock} em estoque</small></span>
+      <span className="cc-card-product-info"><strong>{item.name}</strong><small>Cód. {item.productId} · Disponível</small></span>
       <strong className="cc-card-price">{money(item.unitCents)}</strong>
     </div>)}
     <div className="cc-card-freshness">Preços e estoque conferidos às {checked(card.checkedAt)}. Sujeitos a nova confirmação.</div>

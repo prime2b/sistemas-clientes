@@ -51,7 +51,9 @@ export function applyContext(memory:CeciMemory,context:unknown,evidence:Set<stri
 export function replyViolation(text:string,hasCurrentConsultation:boolean){
   if(!text.trim()||text.length>1600)return 'Escreva uma resposta breve e útil, com até 1600 caracteres.';
   if(/mercado\s*phone|\berp\b|\bapi\b|banco de dados|sistema de gestão|integraç(?:ão|oes|ões)|prompt interno/i.test(text))return 'Remova nomes de fontes e tecnologias internas.';
-  if(/R\$|\d+(?:[,.]\d{2})?\s*reais?|\b\d+[,.]\d{2}\b|\d+\s*(?:unidades?\s+(?:em|no)\s+estoque)/i.test(text))return 'Os valores e números de estoque são exibidos exclusivamente pelos cards do servidor. Remova-os da redação.';
+  const amount='(?:\\d+(?:[.,]\\d+)?|um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|cem|mil)';
+  if(new RegExp('\\b'+amount+'\\s*(?:(?:pe[cç]as?|unidades?|itens)\\s*)?(?:(?:em|no|de)\\s+estoque|dispon[ií]ve(?:l|is)|restantes?)\\b|\\bestoque\\s*(?:(?:total|atual|dispon[ií]vel|[eé]|de|:|=)\\s*){0,3}'+amount+'\\b|\\btemos\\s+(?:somente\\s+|apenas\\s+)?'+amount+'\\s+(?:pe[cç]as?|unidades?)\\b','i').test(text))return 'O saldo numérico do estoque é interno. Informe apenas disponibilidade, sem revelar quantidades em estoque.';
+  if(/R\$|\d+(?:[,.]\d{2})?\s*reais?|\b\d+[,.]\d{2}\b|\d+\s*(?:unidades?\s+(?:em|no)\s+estoque)/i.test(text))return 'Os valores são exibidos pelos cards do servidor. Não revele o saldo numérico do estoque. Remova esses dados da redação.';
   if(/(?:é|está|esta|são)\s+compatível|compatibilidade\s+confirmada|(?:serve|funciona)\s+(?:no|na|para)/i.test(text))return 'Não afirme compatibilidade técnica; use a descrição oficial e esclareça a dúvida ou encaminhe.';
   if(/(?:brilho|toque|durabilidade)\s+(?:melhor|superior)|(?:original|incell)\s+(?:é|tem|oferece)\s+(?:melhor|mais|superior)/i.test(text))return 'Não atribua desempenho ou superioridade sem ficha técnica comprovada.';
   if(!hasCurrentConsultation&&/(?:em|no)\s+estoque|(?:temos|estão|está)\s+disponíve(?:l|is)|disponibilidade\s+confirmada/i.test(text))return 'Consulte a disponibilidade atual antes de confirmá-la.';

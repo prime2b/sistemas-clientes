@@ -4,8 +4,8 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 80.
-- Commit de origem: `899bccdeb8df905e7471da1ce54d50518412d5e5`.
+- Sites: versão 81.
+- Commit de origem: `8888fb3cee0980eb3b2ef164a1fd90e762c255b5`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
@@ -33,6 +33,10 @@ Os testes usam isolamento e serviços simulados: não realizam venda, cobrança,
 A versão 80 reconhece o aceite com o código e a quantidade exatos do orçamento junto com retirada e Pix. A conversa segue para a confirmação final, sem reorçar, gerar respostas vazias ou repetir a escolha. Testes parcialmente salvos podem reaproveitar o aceite já registrado depois do mesmo orçamento, sem nova chamada de IA. Alterações de item/quantidade e condições continuam exigindo esclarecimento.
 
 O celular mostra a digitação de Ceci, atendente e cliente simulado no lado correto. Pausa, histórico e espera manual ficam sem digitação. A mensagem pendente é substituída pela persistida com o mesmo ID. Nenhum menu, tema ou configuração de produção foi alterado nesta correção. A regressão do print e a retomada foram verificadas em runtime isolado, com serviços simulados; a renderização do indicador também foi verificada. Veja [o guia do playground](docs/playground-vendas.md).
+
+## Privacidade do saldo de estoque
+
+A versão 81 substitui a quantidade em estoque por Disponível nas mensagens de produtos e nos cards de conversa. Os estados Indisponível e Consulta pendente permanecem explícitos. A regra vale para WhatsApp, playground e redação da Ceci. Resultados de inspeção enviados ao modelo não incluem o saldo numérico, e a redação é verificada contra sua divulgação. O saldo continua interno para validar os pedidos; as quantidades solicitadas no orçamento permanecem visíveis. Históricos antigos não são reescritos. Testes dos textos, renderização e preservação dos dados internos aprovados.
 
 ## Checkpoint para retorno
 

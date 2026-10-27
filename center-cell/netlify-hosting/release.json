@@ -1,6 +1,6 @@
 {
-  "version": 80,
-  "sourceCommit": "899bccdeb8df905e7471da1ce54d50518412d5e5",
-  "release": "rotinas-digitacao-e-consentimento",
+  "version": 81,
+  "sourceCommit": "8888fb3cee0980eb3b2ef164a1fd90e762c255b5",
+  "release": "ocultar-saldo-estoque",
   "date": "2026-10-27"
 }

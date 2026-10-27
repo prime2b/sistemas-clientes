@@ -12,7 +12,7 @@ export const shortQuoteId=(id:string)=>id.slice(0,8).toUpperCase();
 export function productMessage(intro:string,items:ProductOption[],checkedAt:number,closing?:string){
   if(!items.length||items.length>3||items.some(item=>!Number.isSafeInteger(item.unitCents)||item.unitCents<=0||!Number.isFinite(item.stock)||item.stock<=0))throw new Error('UNVERIFIED_PRODUCT_OPTIONS');
   const card:ProductCard={type:'products',intro,checkedAt,items,...(closing?{closing}:{})};
-  const lines=items.map(item=>`${item.name}\nCód. ${item.productId} · ${item.stock} em estoque · ${brl(item.unitCents)} un.`);
+  const lines=items.map(item=>`${item.name}\nCód. ${item.productId} · Disponível · ${brl(item.unitCents)} un.`);
   const body=[intro,...lines,'Conferi os preços e o estoque agora. Os produtos ainda não estão reservados.',closing].filter(Boolean).join('\n\n');
   if(body.length>4000)throw new Error('MESSAGE_TOO_LONG');
   return {body,card};
@@ -27,7 +27,7 @@ export function catalogMessages(intro:string,items:CatalogItem[],checkedAt:numbe
     const heading=index===0?intro:`Mais opções encontradas (${index+1}/${chunks.length}):`;
     const tail=index===chunks.length-1?closing:'';
     const card:CatalogCard={type:'catalog',intro:heading,closing:tail||undefined,checkedAt,part:index+1,parts:chunks.length,total:items.length,items:chunk};
-    const lines=chunk.map(item=>`${item.name}\nCód. ${item.productId} · ${item.status==='available'?`${item.stock} em estoque · ${brl(item.unitCents!)} un.`:item.status==='unavailable'?'Indisponível no momento':'Valor ou estoque não confirmado'}`);
+    const lines=chunk.map(item=>`${item.name}\nCód. ${item.productId} · ${item.status==='available'?`Disponível · ${brl(item.unitCents!)} un.`:item.status==='unavailable'?'Indisponível no momento':'Valor ou estoque não confirmado'}`);
     const body=[heading,...lines,index===chunks.length-1?`Encontrei ${items.length} ${items.length===1?'produto':'produtos'} no catálogo. Conferi os preços e o estoque das opções confirmadas. Os produtos ainda não estão reservados.`:'',tail].filter(Boolean).join('\n\n');
     if(body.length>4000)throw new Error('MESSAGE_TOO_LONG');
     return {body,card};
