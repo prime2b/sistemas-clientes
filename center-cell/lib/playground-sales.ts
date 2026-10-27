@@ -8,6 +8,19 @@ export type SimulatedSale={revision:number;mode:'automatic'|'manual';step:SaleSt
 const fold=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export const saleSteps:Record<SaleStep,string>={delivery:'Combinar retirada ou entrega',payment:'Combinar forma de pagamento',confirmation:'Confirmar a combinação',ready:'Pronto para concluir',completed:'Venda simulada concluída',queued:'Aguardando atendente disponível'};
 
+function validQuote(quote:ReturnType<typeof parseChatCard>|undefined){
+ return !!quote&&quote.type==='quote'&&quote.checkedAt>0&&quote.items.every(p=>Number.isSafeInteger(p.productId)&&p.productId>0&&Number.isSafeInteger(p.quantity)&&p.quantity>0&&p.unitCents>0&&p.totalCents===p.unitCents*p.quantity)&&quote.totalCents===quote.items.reduce((n,p)=>n+p.totalCents,0);
+}
+/** Only the simulated customer can use this recovery; it still goes through the real Ceci handoff. */
+export function pendingPurchaseConfirmation(log:Row[],expectations:Row[]=[],seed=0){
+ const last=log.findLast(m=>m.role!=='note'),quote=last?.role==='assistant'?parseChatCard(last.card_data):null;
+ if(!validQuote(quote)||quote?.type!=='quote'||quote.status!=='awaiting'||quote.items.reduce((n,p)=>n+p.quantity,0)!==2)return null;
+ const expected=expectations.at(-1);
+ if(expected&&!quote.items.some(p=>p.productId===expected.productId&&p.quantity===expected.quantity))return null;
+ const choices=['Pode fechar, quero comprar.','Estou de acordo, pode finalizar a compra.','Tudo certo, podemos concluir a compra.'];
+ return {quoteId:quote.id,message:choices[seed%choices.length]};
+}
+
 export function createSimulatedSale(log:Row[],team:SimulatedAttendant[],cursor=-1):SimulatedSale|null{
  const handoff=log.findLast(m=>m.role==='note'&&m.body.startsWith('Encaminhamento automático: Compra confirmada após cotação'));
  if(!handoff)return null;
@@ -18,7 +31,7 @@ export function createSimulatedSale(log:Row[],team:SimulatedAttendant[],cursor=-
  const lastAssistant=preceding.findLast(m=>m.role==='assistant');
  const quoteMessage=preceding.findLast(m=>parseChatCard(m.card_data)?.type==='quote');
  const quote=quoteMessage&&parseChatCard(quoteMessage.card_data);
- if(!quote||quote.type!=='quote'||quote.items.some(p=>!Number.isSafeInteger(p.quantity)||p.quantity<1||p.unitCents<=0||p.totalCents!==p.unitCents*p.quantity)||quote.totalCents!==quote.items.reduce((n,p)=>n+p.totalCents,0)||quote.status!=='approved'||!confirmsPurchase(consent.body,lastAssistant?.body||''))return null;
+ if(!quoteMessage||!validQuote(quote)||quote?.type!=='quote'||quote.status!=='approved'||!confirmsPurchase(consent.body,lastAssistant?.body||''))return null;
  const loads=Object.fromEntries(team.map(t=>[t.name,t.load]));
  const index=selectAttendantIndex(team.map(t=>t.name),team.flatMap((t,i)=>t.available?[i]:[]),loads,cursor);
  return {revision:0,mode:'automatic',step:index===null?'queued':'delivery',team:structuredClone(team),assignedSlot:index===null?null:team[index].slot,receivedAt:Date.now(),acceptedAt:0,completedAt:0,quote:structuredClone(quote),quoteMessageId:quoteMessage.id,consentMessageId:consent.id,handoffMessageId:handoff.id,summary:handoff.body,delivery:'',payment:'',confirmationMessageId:'',pendingCustomer:'',turns:0,deliveryChoice:cursor%2?'entrega':'retirada',paymentChoice:cursor%2?'cartao':'pix'};
@@ -54,7 +67,7 @@ export function canCompleteSale(sale:SimulatedSale){return sale.step==='ready'&&
 export const simulatedClosing=(sale:SimulatedSale)=>`Tudo certo! Combinamos ${sale.delivery==='retirada'?'retirada na loja':'a entrega'} e pagamento ${sale.payment==='pix'?'por Pix':'no cartão'}. Obrigada pela compra!`;
 export function saleCriteria(sale:SimulatedSale|null|undefined,log:Row[],expectQueue=false){
  const check=(id:string,label:string,ok:boolean,detail:string,ids:string[]=[])=>({id,label,status:ok?'pass' as const:'fail' as const,critical:true,detail,messageIds:ids});
- if(!sale)return [check('sale-received','Atendimento chegou ao painel da atendente',false,'O orçamento aceito não chegou ao painel simulado.')];
+ if(!sale)return [check('sale-received','Atendimento chegou ao painel da atendente',false,'O orçamento aceito não chegou ao painel simulado.'),...(expectQueue?[]:[check('sale-accepted','Atendente assumiu a conversa',false,'A atendente ainda não recebeu nem assumiu este atendimento.'),check('sale-complete','Venda simulada concluída após confirmação',false,'Faltam o atendimento humano simulado e a confirmação final do cliente.')])];
  const at=log.findIndex(m=>m.id===sale.handoffMessageId),after=log.slice(at+1),agents=after.filter(m=>m.role==='agent');
  const controls=[check('sale-routing','Distribuição e isolamento dos três painéis',expectQueue?!sale.assignedSlot:sale.team.some(t=>t.slot===sale.assignedSlot&&t.available),expectQueue?'Nenhuma atendente disponível: conversa mantida na fila simulada.':'Responsável escolhido pela mesma regra de disponibilidade e carga da operação.',[sale.handoffMessageId]),check('sale-ceci-stopped','Ceci encerrou sua participação após transferir',!after.some(m=>m.role==='assistant'),'Após a transferência, respostas comerciais pertencem à atendente.',after.filter(m=>m.role==='assistant').map(m=>m.id))];
  if(expectQueue)return [...controls,check('sale-queue','Aguardar sem anunciar atendimento assumido',sale.step==='queued'&&!sale.acceptedAt&&!agents.length&&!sale.completedAt,'Fila aguardando disponibilidade, sem falsa aceitação ou venda concluída.')];

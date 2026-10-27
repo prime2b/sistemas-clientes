@@ -1,5 +1,6 @@
 /** Runs the production core against an isolated SQLite D1 adapter and mocked HTTP services. */
 import assert from 'node:assert/strict';
+import {confirmsPurchase} from '../lib/ceci-purchase.ts';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync,existsSync} from 'node:fs';
 import {registerHooks} from 'node:module';
@@ -39,7 +40,7 @@ globalThis.fetch=async(input,init)=>{const url=new URL(String(input));
   const tools=p.input.filter(m=>m.type==='function_call');
   if(/duas unidades do código/.test(last.texto)&&!tools.some(t=>t.name==='consultar_e_orcar')){name='consultar_e_orcar';args={itens:[{productId:1000,quantity:2}]};}
   else if(/duas unidades do código/.test(last.texto)){args.texto='Aqui está seu orçamento.';args.proximoPasso='Quer prosseguir com a compra?';}
-  else if(/Pode fechar/.test(last.texto)){const dev=JSON.parse(p.input[0].content.split('\n').at(-1));name='encaminhar_humano';args={motivo:'compra_confirmada',resumo:'Cliente quer comprar duas telas iPhone 12.',mensagem:'Vou chamar a equipe para concluir.',orcamentoId:dev.orcamentoVigente,mensagemId:last.mensagemId,contexto:{fatos:[],pendencia:'',proximaAcao:''}};}
+  else if(confirmsPurchase(last.texto,'')){const dev=JSON.parse(p.input[0].content.split('\n').at(-1));name='encaminhar_humano';args={motivo:'compra_confirmada',resumo:'Cliente quer comprar duas telas iPhone 12.',mensagem:'Vou chamar a equipe para concluir.',orcamentoId:dev.orcamentoVigente,mensagemId:last.mensagemId,contexto:{fatos:[],pendencia:'',proximaAcao:''}};}
   return Response.json({output:[{type:'function_call',name,call_id:crypto.randomUUID(),arguments:JSON.stringify(args)}],usage:{input_tokens:100,output_tokens:50}});
  }
  if(url.hostname==='platform.mercadophone.tech'){
@@ -112,6 +113,7 @@ const naturalFetch=async(input,init)=>{
   assert.ok(p.input.includes(naturalProduct.model),'only the customer simulator knows the reserved objective');
   const parts=['Preciso de '+naturalProduct.part,naturalProduct.model,'Para minha assistência, sou lojista.','Quero duas unidades do código '+naturalProduct.exampleId+'.','Estou de acordo, pode finalizar a compra.'];
   assert.ok(parts[customerStep-1],'unexpected extra customer turn');
+  if(customerStep===5)return output({done:true,message:''});
   return output({message:parts[customerStep-1],done:false,expectedProductId:customerStep===4?naturalProduct.exampleId:null,expectedQuantity:customerStep===4?2:null});
  }
  if(p.instructions.startsWith('Você avalia')){const log=JSON.parse(p.input).messages;return output({result:'pass',summary:'A Ceci acolheu, identificou a necessidade e conduziu ao orçamento e encaminhamento.',findings:['naturalidade','clareza','contexto','repeticao','conducao'].map(criterion=>({criterion,result:'pass',detail:'A sequência preserva as informações recebidas, com próximo passo claro.',messageIds:[log.filter(m=>m.role==='assistant').at(-1).id]}))});}
@@ -125,7 +127,7 @@ const naturalFetch=async(input,init)=>{
   if(!calls.some(c=>c.name==='listar_todas_opcoes')){name='listar_todas_opcoes';a={busca:naturalProduct.query};}else{a.texto='Estas são as opções que encontrei.';a.proximoPasso='Qual delas você prefere?';}
  }else if(last.texto.startsWith('Quero duas unidades')){
   if(!calls.some(c=>c.name==='consultar_e_orcar')){name='consultar_e_orcar';a={itens:[{productId:naturalProduct.exampleId,quantity:2}]};}else{a.texto='Separei duas unidades no orçamento.';a.proximoPasso='Quer prosseguir com a compra?';}
- }else if(last.texto.startsWith('Estou de acordo')){
+ }else if(confirmsPurchase(last.texto,'')){
   assert.deepEqual(p.tools.map(t=>t.name),['encaminhar_humano']);
   // Even an invalid provider tool response cannot regenerate the accepted quote.
   if(!calls.some(c=>c.name==='consultar_e_orcar'))return Response.json({output:[{type:'function_call',name:'consultar_e_orcar',call_id:crypto.randomUUID(),arguments:JSON.stringify({itens:[{productId:naturalProduct.exampleId,quantity:2}]})}],usage:{input_tokens:100,output_tokens:50}});
@@ -134,13 +136,13 @@ const naturalFetch=async(input,init)=>{
  return Response.json({output:[{type:'function_call',name,call_id:crypto.randomUUID(),arguments:JSON.stringify(a)}],usage:{input_tokens:100,output_tokens:50}});
 };
 globalThis.fetch=naturalFetch;
-await drain(naturalRun.id);const fullNatural=await runner.automaticDetail(naturalRun.id,owner);assert.equal(fullNatural.state,'completed');assert.equal(fullNatural.cases[0].result,'passed',JSON.stringify(fullNatural.cases[0]));assert.ok(firstAssistantSeen);assert.equal(fullNatural.messages.filter(m=>m.role==='user')[0].body,'Oi');assert.equal(fullNatural.cases[0].criteria.find(c=>c.id==='discovery').status,'pass');assert.equal(fullNatural.cases[0].criteria.find(c=>c.id==='opening').status,'pass');assert.equal(outbound,0);assert.equal(await core.getSetting('ceci:manualPause'),true);
+await drain(naturalRun.id);const fullNatural=await runner.automaticDetail(naturalRun.id,owner);assert.equal(fullNatural.state,'completed');assert.equal(fullNatural.cases[0].result,'passed',JSON.stringify(fullNatural.cases[0]));assert.equal(fullNatural.cases[0].earlyFinishRecoveries,1,'premature done at the quote must continue through purchase acceptance');assert.equal(fullNatural.cases[0].sale.step,'completed');assert.ok(fullNatural.cases[0].criteria.filter(c=>c.id.startsWith('sale-')).every(c=>c.status==='pass'));assert.ok(firstAssistantSeen);assert.equal(fullNatural.messages.filter(m=>m.role==='user')[0].body,'Oi');assert.equal(fullNatural.cases[0].criteria.find(c=>c.id==='discovery').status,'pass');assert.equal(fullNatural.cases[0].criteria.find(c=>c.id==='opening').status,'pass');assert.equal(outbound,0);assert.equal(await core.getSetting('ceci:manualPause'),true);
 assert.equal(fullNatural.messages.filter(m=>{try{return JSON.parse(m.card_data||'null')?.type==='quote';}catch{return false;}}).length,1,'acceptance must not create another quote');assert.equal(fullNatural.events.filter(e=>e.kind==='prepare').length,1);assert.equal(fullNatural.cases[0].criteria.find(c=>c.id==='quote-loop').status,'pass');
 globalThis.fetch=normalFetch;
 // A batch records diverse real-catalog requests without changing historical runs.
 const mixed=await runner.startAutomatic(owner,args(['quote','catalog','edit','typos']));assert.ok(new Set(mixed.cases.map(c=>c.scenarioSnapshot.productContext.brand)).size>=3);assert.ok(new Set(mixed.cases.map(c=>c.scenarioSnapshot.productContext.part)).size>=2);await runner.controlAutomatic(mixed.id,owner,'stop');
 const noBrand=await runner.startAutomatic(owner,{...args(['quote']),productBrand:'Realme'});await drain(noBrand.id);assert.equal((await runner.getAutomatic(noBrand.id)).cases[0].result,'unavailable');
-console.log('PASS natural journey: greeting only, no hidden context leaked, Samsung discovery across separate messages, catalog, exact quote, purchase handoff, mixed-brand batch and absent-brand handling');
+console.log('PASS premature-done regression and full natural journey: greeting only, no hidden context leaked, Samsung discovery across separate messages, catalog, exact quote, purchase handoff, mixed-brand batch and absent-brand handling');
 
 const {autoScenarios}=await import('../lib/playground-scenarios.ts');const allId=crypto.randomUUID();const allResponse=await route.POST(new Request('https://fixture.test/api/playground',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({action:'start',id:allId,scenarios:autoScenarios.map(s=>s.id)})}));assert.equal(allResponse.status,200);assert.equal((await allResponse.json()).run.cases.length,12);await runner.controlAutomatic(allId,owner,'stop');
 console.log('PASS API: all 12 scenarios accepted in one battery');
@@ -158,6 +160,6 @@ for(let step=0;step<12;step++){const data=await productionPost({action:'tick',id
 console.log('PASS minified production route: start → catalog → customer response → evaluation → report');
 
 const compiledNaturalId=crypto.randomUUID();const compiledStart=await productionPost({action:'start',id:compiledNaturalId,scenarios:['first-contact'],productBrand:'Samsung',openingVariant:'oi'});naturalProduct=compiledStart.run.cases[0].scenarioSnapshot.productContext;customerStep=0;firstAssistantSeen=false;globalThis.fetch=naturalFetch;
-for(let step=0;step<28;step++){const data=await productionPost({action:'tick',id:compiledNaturalId});if(data.run.state==='completed'){assert.equal(data.run.cases[0].result,'passed',JSON.stringify(data.run.cases[0]));assert.equal(data.run.messages.filter(m=>m.role==='user')[0].body,'Oi');assert.equal(data.run.messages.filter(m=>{try{return JSON.parse(m.card_data||'null')?.type==='quote';}catch{return false;}}).length,1);assert.equal(data.run.events.filter(e=>e.kind==='prepare').length,1);break;}assert.ok(step<27,'compiled first-contact routine stalled');}
+for(let step=0;step<28;step++){const data=await productionPost({action:'tick',id:compiledNaturalId});if(data.run.state==='completed'){assert.equal(data.run.cases[0].result,'passed',JSON.stringify(data.run.cases[0]));assert.equal(data.run.cases[0].earlyFinishRecoveries,1);assert.equal(data.run.cases[0].sale.step,'completed');assert.ok(data.run.cases[0].criteria.filter(c=>c.id.startsWith('sale-')).every(c=>c.status==='pass'));assert.equal(data.run.messages.filter(m=>m.role==='user')[0].body,'Oi');assert.equal(data.run.messages.filter(m=>{try{return JSON.parse(m.card_data||'null')?.type==='quote';}catch{return false;}}).length,1);assert.equal(data.run.events.filter(e=>e.kind==='prepare').length,1);break;}assert.ok(step<27,'compiled first-contact routine stalled');}
 globalThis.fetch=normalFetch;assert.ok(firstAssistantSeen);assert.equal(outbound,0);
 console.log('PASS minified production: Samsung first-contact conversation from greeting through discovery, quote and handoff');
