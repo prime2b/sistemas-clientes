@@ -4,7 +4,7 @@ import {selectAttendantIndex} from './attendant-routing.ts';
 type Row=Record<string,any>;
 export type SimulatedAttendant={slot:number;name:string;avatar:string;available:boolean;load:number};
 export type SaleStep='claim'|'selection'|'quote'|'quote_acceptance'|'model_query'|'catalog_refresh'|'delivery'|'payment'|'confirmation'|'ready'|'completed'|'queued';
-export type SimulatedSale={shared?:boolean;knownQuantity?:number;catalog?:any[];selection?:{productId:number;quantity:number}[];scenarioKind?:string;scenarioId?:string;quoteVersions?:number;secondProduct?:any;revision:number;mode:'automatic'|'manual';step:SaleStep;team:SimulatedAttendant[];assignedSlot:number|null;receivedAt:number;acceptedAt:number;completedAt:number;quote:any;quoteMessageId:string;consentMessageId:string;handoffMessageId:string;summary:string;delivery:string;payment:string;confirmationMessageId:string;pendingCustomer:string;turns:number;deliveryChoice:'retirada'|'entrega';paymentChoice:'pix'|'cartao';lastAgentMessageId?:string;lastCustomerStep?:SaleStep};
+export type SimulatedSale={shared?:boolean;knownQuantity?:number;catalog?:any[];selection?:{productId:number;quantity:number}[];selectionIssue?:'product'|'quantity'|'stock';scenarioKind?:string;scenarioId?:string;quoteVersions?:number;secondProduct?:any;revision:number;mode:'automatic'|'manual';step:SaleStep;team:SimulatedAttendant[];assignedSlot:number|null;receivedAt:number;acceptedAt:number;completedAt:number;quote:any;quoteMessageId:string;consentMessageId:string;handoffMessageId:string;summary:string;delivery:string;payment:string;confirmationMessageId:string;pendingCustomer:string;turns:number;deliveryChoice:'retirada'|'entrega';paymentChoice:'pix'|'cartao';lastAgentMessageId?:string;lastCustomerStep?:SaleStep};
 const fold=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export const saleSteps:Record<SaleStep,string>={claim:'Aguardando alguém assumir na central',selection:'Escolher produto e quantidade',quote:'Consultar e montar orçamento pela atendente',quote_acceptance:'Cliente conferir o orçamento',model_query:'Confirmar novo modelo com a equipe',catalog_refresh:'Consultar opções do novo modelo',delivery:'Combinar retirada ou entrega',payment:'Combinar forma de pagamento',confirmation:'Confirmar a combinação',ready:'Pronto para concluir',completed:'Venda simulada concluída',queued:'Aguardando atendente disponível'};
 
@@ -37,9 +37,32 @@ export function createSimulatedSale(log:Row[],team:SimulatedAttendant[],cursor=-
  return {revision:0,mode:'automatic',step:index===null?'queued':'delivery',team:structuredClone(team),assignedSlot:index===null?null:team[index].slot,receivedAt:Date.now(),acceptedAt:0,completedAt:0,quote:structuredClone(quote),quoteMessageId:quoteMessage.id,consentMessageId:consent.id,handoffMessageId:handoff.id,summary:handoff.body,delivery:'',payment:'',confirmationMessageId:'',pendingCustomer:'',turns:0,deliveryChoice:cursor%2?'entrega':'retirada',paymentChoice:cursor%2?'cartao':'pix'};
 }
 export const saleAttendant=(sale:SimulatedSale)=>sale.team.find(t=>t.slot===sale.assignedSlot);
+/** Parse the customer's actual text; model metadata alone cannot select a product. */
+export function readSaleSelection(sale:SimulatedSale,body:string,edit=false){
+ const text=fold(body),words:Record<string,number>={um:1,uma:1,dois:2,duas:2,tres:3,quatro:4,cinco:5,seis:6,sete:7,oito:8,nove:9,dez:10};
+ const codes=[...text.matchAll(/\bc(?:odigo|od[.]?)\s*[:#]?\s*(\d+)/g)].map(m=>Number(m[1]));
+ const explicit=[...new Set(codes)],mentioned=(sale.catalog||[]).filter(p=>new RegExp('\\b'+p.productId+'\\b').test(text));
+ const ordinal=/\b(?:a |opcao )?(primeira|segunda|terceira)\b/.exec(text)?.[1];
+ const ordinalIndex=({primeira:0,segunda:1,terceira:2} as Record<string,number>)[ordinal||'']??-1;
+ const id=explicit.length===1?explicit[0]:!explicit.length&&mentioned.length===1?mentioned[0].productId:!explicit.length&&ordinal?sale.catalog?.[ordinalIndex]?.productId:edit&&!explicit.length?sale.selection?.[0]?.productId:0;
+ const values=[...text.matchAll(/\b(\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)\s+(?:unidades?|pecas?|del[ae]s?|dess[ae]s?|dest[ae]s?)\b/g)].map(m=>Number(words[m[1]]||m[1]));
+ const quantities=[...new Set(values)],quantity=quantities.length===1?quantities[0]:!quantities.length?sale.knownQuantity:0;
+ const product=sale.catalog?.find(p=>p.productId===id&&p.status==='available');
+ if(!product||explicit.length>1||/[?]|\b(?:nao|talvez)\b/.test(text))return {issue:'product' as const};
+ if(!Number.isSafeInteger(quantity)||!quantity||quantity<1||quantity>10000||quantities.length>1)return {issue:'quantity' as const};
+ if(quantity>Number(product.stock))return {issue:'stock' as const};
+ return {selection:{productId:Number(id),quantity}};
+}
+/** Remember volunteered preferences without treating them as purchase/final consent. */
+export function rememberSalePreferences(sale:SimulatedSale,body:string){
+ const text=fold(body);if(/[?]|\b(?:nao|talvez|se|pensar|depois)\b/.test(text))return;
+ const pickup=/\b(?:retirada|retirar na loja|retirar no balcao|buscar na loja)\b/.test(text),delivery=/\bentrega\b|receber em casa/.test(text),pix=/\bpix\b/.test(text),card=/\bcartao\b/.test(text);
+ if(pickup!==delivery)sale.delivery=pickup?'retirada':'entrega';
+ if(pix!==card)sale.payment=pix?'pix':'cartao';
+}
 export function saleQuestion(sale:SimulatedSale){
  const first=saleAttendant(sale)?.name.split(' ')[0]||'a atendente';
- if(sale.step==='selection')return `${sale.acceptedAt?'':'Oi! Já estou com as opções que você recebeu. '}${sale.knownQuantity?'Qual código você escolhe para as '+sale.knownQuantity+' unidades que pediu?':'Qual código você escolhe e quantas unidades precisa?'}`;
+ if(sale.step==='selection'){if(sale.selectionIssue==='stock')return 'Essa quantidade não foi confirmada para o item escolhido. Quer conferir outra opção da lista?';if(sale.selectionIssue==='product')return 'Qual dos códigos da lista você prefere?';if(sale.selectionIssue==='quantity')return 'Qual quantidade você quer desse item?';return `${sale.acceptedAt?'':'Oi! Já estou com as opções que você recebeu. '}${sale.knownQuantity?'Qual código você escolhe para as '+sale.knownQuantity+' unidades que pediu?':'Qual código você escolhe e quantas unidades precisa?'}`;}
  if(sale.step==='quote_acceptance')return 'Ficou tudo certo com este orçamento? Posso seguir com a compra?';
  if(sale.step==='model_query')return 'Já estou com as opções que você recebeu. Quer continuar com esse modelo ou precisa de outro?';
  if(sale.step==='delivery')return `${sale.acceptedAt?'':'Oi! Aqui é '+first+'. Já estou com seu orçamento. '}Você prefere retirar ou receber por entrega?`;
@@ -68,12 +91,13 @@ function sharedQuoteConsent(sale:SimulatedSale,body:string,previousAgent:string)
 }
 export function applySaleCustomer(sale:SimulatedSale,message:Row,previousAgent:string){
  const text=fold(String(message.body||''));
- if(sale.shared&&sale.step==='quote_acceptance'){const consent=sharedQuoteConsent(sale,String(message.body||''),previousAgent);if(!consent)return false;sale.consentMessageId=message.id;sale.delivery=consent.delivery||sale.delivery;sale.payment=consent.payment||sale.payment;sale.step=sale.delivery?(sale.payment?'confirmation':'payment'):'delivery';return true;}
+ if(sale.shared&&sale.step==='quote_acceptance'){const consent=sharedQuoteConsent(sale,String(message.body||''),previousAgent);if(!consent)return false;rememberSalePreferences(sale,String(message.body||''));sale.consentMessageId=message.id;sale.delivery=consent.delivery||sale.delivery;sale.payment=consent.payment||sale.payment;sale.step=sale.delivery?(sale.payment?'confirmation':'payment'):'delivery';return true;}
  // A question or refusal is never completion, and a changed order requires review.
  if(/[?]|\b(?:nao|talvez|depois|pensar|antes|mas|troca\w*|alter\w*|adicion\w*|acrescent\w*|desist\w*|cancel\w*)\b/.test(text))return false;
+ rememberSalePreferences(sale,String(message.body||''));
  if(sale.step==='delivery'){
   const pickup=/\bretir\w*\b|buscar na loja/.test(text),delivery=/\bentrega\b|receber em casa/.test(text);
-  if(pickup===delivery)return false;sale.delivery=pickup?'retirada':'entrega';sale.step='payment';return true;
+  if(pickup===delivery)return false;sale.delivery=pickup?'retirada':'entrega';sale.step=sale.payment?'confirmation':'payment';return true;
  }
  if(sale.step==='payment'){
   const pix=/\bpix\b/.test(text),card=/\bcartao\b/.test(text);

@@ -4,11 +4,17 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 83.
-- Commit de origem: `547cefb0596a0604ff06db0f900d18b773c81a2e`.
+- Sites: versão 84.
+- Commit de origem: `b6cd4b5239f90341b35eb8337494afde66984172`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Rotinas automáticas: escolha até a venda simulada
+
+A versão 84 corrige a repetição após a escolha de código e quantidade. O cliente fictício recebe opções aptas à quantidade exigida, sem saldo de estoque; seleções geradas inválidas podem ser ajustadas antes da mensagem e ficam registradas em eventos de simulação. A lista completa da Ceci é preservada. Quantidades por extenso e referências à posição da lista são reconhecidas. Retirada/Pix antecipados são aproveitados sem dispensar aceite do orçamento e confirmação final. Uma escolha já persistida pode ser retomada sem duplicação ou nova chamada de IA.
+
+O problema foi reproduzido no executor anterior com o mesmo erro de repetição, usando um item disponível sem quantidade suficiente. A regressão e o fluxo completo passaram em testes isolados, incluindo rotas compiladas, várias marcas, retomada, orçamento único e conclusão da venda simulada. Caso nenhuma opção atenda à quantidade, a rotina termina como indisponível. Não houve venda, cobrança, envio ao WhatsApp ou mudança de configuração de produção nesses testes. Veja [o guia](docs/playground-vendas.md).
 
 ## Correção da geração do QR Code
 

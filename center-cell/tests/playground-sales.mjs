@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {selectAttendantIndex} from '../lib/attendant-routing.ts';
-import {saleQuestion,createSimulatedSale,applySaleCustomer,canCompleteSale,saleCriteria,pendingPurchaseConfirmation} from '../lib/playground-sales.ts';
+import {saleQuestion,createSimulatedSale,applySaleCustomer,canCompleteSale,saleCriteria,pendingPurchaseConfirmation,readSaleSelection,rememberSalePreferences} from '../lib/playground-sales.ts';
 const names=['Ana','Bia','Carla'];
 assert.equal(selectAttendantIndex(names,[0,1,2],{Ana:2,Bia:0,Carla:1}),1);
 assert.equal(selectAttendantIndex(names,[0,1,2],{},0),1);
@@ -44,3 +44,9 @@ assert.ok(saleQuestion(sharedSale()).trim(),'unrecognized consent must receive a
 console.log('PASS compound confirmation: exact SKU/quantity plus pickup/Pix advances to final confirmation; changed item, quantity, refusal and conditions remain blocked');
 
 const multiple=sharedSale();multiple.quote.items=[{...quote.items[0],quantity:1},{...quote.items[0],productId:20,quantity:1}];assert.equal(applySaleCustomer(multiple,{id:'ambiguous',body:compound},'Posso seguir com a compra?'),false,'a single cited SKU and aggregate quantity cannot silently change a multi-item quote');
+const selected={...sharedSale(),step:'selection',quote:null,catalog:[{productId:4404997,status:'available',stock:1},{productId:4213707,status:'available',stock:5}]};
+assert.equal(readSaleSelection(selected,'Escolho o código 4404997, duas unidades.').issue,'stock');
+for(const body of ['Escolho o código 4213707, duas unidades.','Quero dois desse, código 4213707.','A segunda, duas peças.','4213707, 2 unidades.'])assert.deepEqual(readSaleSelection(selected,body).selection,{productId:4213707,quantity:2},body);
+for(const body of ['Código 9999999, duas unidades.','Código 4213707, duas ou três unidades?','Código 4213707, zero unidades.','Não quero código 4213707, duas unidades.'])assert.equal(readSaleSelection(selected,body).selection,undefined,body);
+rememberSalePreferences(selected,'Escolho o código 4213707, duas unidades. Prefiro retirar na loja e pagar por Pix.');assert.equal(selected.delivery,'retirada');assert.equal(selected.payment,'pix');assert.equal(selected.consentMessageId,'');assert.equal(canCompleteSale(selected),false);
+console.log('PASS selection: number words/ordinal/SKU references work, insufficient quantity/unknown SKU/refusal remain blocked, and early pickup/Pix is context rather than purchase consent');

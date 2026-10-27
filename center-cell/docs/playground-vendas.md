@@ -40,3 +40,11 @@ Verificação: regressão do texto do print (código, duas unidades, aceite, ret
 ## Saldo de estoque
 
 As mensagens da Ceci e os cards de produtos mostram apenas disponibilidade, sem divulgar quantas peças existem em estoque. A mesma apresentação vale no WhatsApp e no playground. O saldo numérico continua disponível internamente para validar a quantidade solicitada e impedir orçamento sem estoque suficiente. Quantidades do pedido e do orçamento permanecem visíveis. A consulta de opções enviada ao modelo não contém o campo numérico de estoque, e a redação da agente também é verificada contra divulgação de saldo. Históricos de mensagens antigas não são reescritos.
+
+## Escolha sem repetição na simulação
+
+Um item disponível pode não atender à quantidade do cenário. O cliente fictício recebe opções aptas à quantidade solicitada, sem acesso ao saldo numérico. A lista da Ceci continua completa. Uma escolha gerada inválida pode ser corrigida uma única vez pelo executor antes de virar mensagem, usando somente códigos apresentados e quantidade do cenário; esse ajuste fica registrado nos eventos como `simulated-client-repair`. Isso não altera mensagens reais, respostas já salvas nem o comportamento da Ceci em produção. Se nenhuma opção atender à quantidade, o resultado é indisponível, nunca uma venda ficticiamente aprovada.
+
+O executor reconhece quantidades por extenso, códigos e referências à posição da lista. Retirada e pagamento informados junto da escolha são aproveitados; aceite do orçamento e confirmação final continuam sendo exigidos em etapas distintas. Escolhas já persistidas em execuções parcialmente salvas são retomadas sem nova mensagem ou chamada de IA. Quando faltar um dado ou a quantidade não puder ser confirmada, o pedido de esclarecimento indica a pendência específica.
+
+A regressão do print foi reproduzida no executor anterior com `AUTO_SALE_REPEATED_REPLY` e um item disponível sem quantidade suficiente. `tests/playground-selection-runtime.mjs` verifica o mesmo caso até a venda simulada, o diálogo com retirada/Pix antecipados, Samsung, Motorola, Xiaomi, retomada e indisponibilidade legítima, usando serviços isolados. `tests/shared-central-runtime.mjs` cobre o fluxo completo desde o “Oi”, as demais rotinas e as rotas compiladas.
