@@ -4,11 +4,15 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 82.
-- Commit de origem: `a9a06b7ce9cd3183c4f5fd4081d1068510f81257`.
+- Sites: versão 83.
+- Commit de origem: `547cefb0596a0604ff06db0f900d18b773c81a2e`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Correção da geração do QR Code
+
+A versão 83 interpreta corretamente os detalhes informativos retornados em `error` pelo endpoint `/status` da Z-API. Estados documentados de conectado, desconectado e sessão a restaurar não são tratados como falhas de credenciais. Quando desconectada, a central segue para solicitar o QR real. Falhas de autenticação, respostas inválidas e erros do endpoint de QR continuam bloqueados. A regressão foi reproduzida antes da correção e validada nas rotas reais com HTTP simulado. Credenciais e interface foram preservadas.
 
 ## WhatsApp pela Z-API
 

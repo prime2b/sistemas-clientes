@@ -15,7 +15,7 @@ const DB={prepare:q=>new Statement(q),batch:async ss=>{sql.exec('BEGIN');try{con
 const instance='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',phone='5517999990000';
 globalThis.__zapiTasks=[];globalThis.__zapiFixture={DB,ZAPI_INSTANCE_ID:instance,ZAPI_INSTANCE_TOKEN:'fixture-instance-token',ZAPI_CLIENT_TOKEN:'fixture-client-token',ZAPI_WEBHOOK_SECRET:'fixture-callback-secret',ZAPI_WEBHOOK_URL:'https://fixture.test/api/z-api/events',OPENAI_API_KEY:'fixture-ai-key'};
 const core=await import('../lib/server/core.ts'),zapi=await import('../lib/server/zapi.ts'),hooks=await import('../app/api/z-api/events/route.ts'),pair=await import('../app/api/whatsapp-web/route.ts'),auth=await import('../lib/server/app-auth.ts');
-let connected=false,calls=[],sends=[],modelCalls=0;
+let connected=false,calls=[],sends=[],modelCalls=0,statusOverride=null,statusHttp=200,qrFailure=false;
 globalThis.fetch=async(input,init={})=>{
  const u=new URL(String(input));
  if(u.hostname==='api.z-api.io'){
@@ -23,8 +23,8 @@ globalThis.fetch=async(input,init={})=>{
   assert.ok(u.pathname.startsWith('/instances/'+instance+'/token/fixture-instance-token/'));
   const path=u.pathname.split('/token/fixture-instance-token')[1];calls.push({path,method:init.method});
   if(path.startsWith('/update-webhook-')){assert.equal(init.method,'PUT');const value=new URL(JSON.parse(init.body).value);assert.equal(value.origin,'https://fixture.test');assert.equal(value.pathname,'/api/z-api/events');assert.equal(value.searchParams.get('key'),'fixture-callback-secret');return Response.json({value:true});}
-  if(path==='/status')return Response.json({connected,smartphoneConnected:connected});
-  if(path==='/qr-code/image')return Response.json({value:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB'});
+  if(path==='/status')return Response.json(statusOverride||{connected,error:connected?'You are already connected.':'You are not connected.',smartphoneConnected:connected},{status:statusHttp});
+  if(path==='/qr-code/image')return Response.json(qrFailure?{error:'You are not connected.'}:{value:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB'});
   if(path==='/disconnect'){connected=false;return Response.json({value:true});}
   if(path==='/profile-picture')return Response.json([{link:'https://pps.whatsapp.net/fixture.jpg'}]);
   if(path==='/send-text'){sends.push(JSON.parse(init.body));return Response.json({messageId:'fixture-out-'+sends.length});}
@@ -49,6 +49,16 @@ await core.setting('check:whatsappWeb',{connected:true,at:Date.now()});assert.eq
 const qr=await zapi.connect();assert.equal(qr.state,'qr');assert.ok(qr.expiresAt>Date.now()+19000);assert.equal(calls.filter(c=>c.path.startsWith('/update-webhook-')).length,4);assert.equal(await zapi.webhookConfigured(),true);
 assert.equal(zapi.qrView({challenge:'fixture'}).state,'challenge');assert.throws(()=>zapi.qrView({value:'https://evil.test/qr.png'}),/QR Code válido/);
 connected=true;const before=calls.filter(c=>c.path==='/qr-code/image').length;assert.equal((await zapi.connect()).state,'connected');assert.equal(calls.filter(c=>c.path==='/qr-code/image').length,before,'connected number must not regenerate QR');
+// Z-API documents `error` as an informational field in successful status responses.
+for(const error of ['You are not connected','You need to restore the session.']){
+ connected=false;statusOverride={connected:false,error,smartphoneConnected:false};await core.setting('check:whatsappWeb',null);
+ const get=await pair.GET(new Request('https://fixture.test/api/whatsapp-web',{headers:adminHeaders}));assert.equal(get.status,200);const body=await get.json();assert.equal(body.state,'offline');assert.equal(body.error,undefined);
+ const response=await pair.POST(new Request('https://fixture.test/api/whatsapp-web',{method:'POST',headers:adminHeaders,body:'{"action":"connect"}'}));assert.equal(response.status,200);const pairing=await response.json();assert.equal(pairing.state,'qr');assert.match(pairing.qr,/^data:image\/png;base64,/);assert.ok(pairing.expiresAt>Date.now()+19000);
+}
+for(const invalid of [{error:'Invalid Client-Token'},{connected:false,error:'Invalid instance token'},{connected:'false',error:'You are not connected.'}]){statusOverride=invalid;await assert.rejects(zapi.connect(),/Z-API/);}
+statusOverride={connected:false,error:'You are not connected.'};statusHttp=401;await assert.rejects(zapi.connect(),/credenciais/);statusHttp=200;
+qrFailure=true;await assert.rejects(zapi.connect(),/não confirmou a operação/);qrFailure=false;statusOverride=null;connected=true;
+console.log('PASS reported QR regression: documented informational status is accepted, HTTP status/QR routes work, real token failures and malformed states remain blocked');
 assert.equal(await zapi.avatar(phone),'https://pps.whatsapp.net/fixture.jpg');
 console.log('PASS pairing: auth, CSRF, required Client-Token, four authenticated webhooks, real QR lifecycle, challenge, connected shortcut and profile picture');
 const received=(extra={})=>({type:'ReceivedCallback',instanceId:instance,messageId:crypto.randomUUID(),phone,fromMe:false,fromApi:false,isGroup:false,senderName:'Cliente fixture',text:{message:'Oi'},senderPhoto:'https://pps.whatsapp.net/fixture.jpg',...extra});

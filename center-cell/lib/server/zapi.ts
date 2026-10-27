@@ -19,7 +19,10 @@ export async function call(path:string,method:'GET'|'PUT'|'POST'='GET',body?:Rec
  if(!response.ok){console.warn('zapi_response_status',response.status);if([401,403].includes(response.status))throw new Error('A Z-API recusou as credenciais. Confira o token da instância e o Client-Token.');if(response.status===429)throw new Error('A Z-API limitou as solicitações. Aguarde antes de tentar novamente.');throw new Error(`A Z-API não confirmou a solicitação (${response.status}).`);}
  const raw=await response.text();if(raw.length>500000)throw new Error('Resposta da Z-API fora do tamanho esperado.');
  let result:any;try{result=JSON.parse(raw);}catch{throw new Error('A Z-API retornou uma resposta inválida.');}
- if(result?.error)throw new Error('A Z-API não confirmou a operação. Confira as credenciais, a assinatura e a conexão da instância.');
+ // `/status` uses `error` for documented connection details, including success.
+ // Accept only those details on a typed status payload; actual API failures still fail.
+ const statusDetail=path==='/status'&&typeof result?.connected==='boolean'&&typeof result?.error==='string'&&/^You (?:are already connected|are not connected|need to restore the session)\.?$/i.test(result.error.trim());
+ if(result?.error&&!statusDetail)throw new Error('A Z-API não confirmou a operação. Confira as credenciais, a assinatura e a conexão da instância.');
  return result;
 }
 export async function callbackUrl(){
@@ -35,7 +38,7 @@ export async function setup(){
  for(const route of ['received','connected','disconnected','message-status']){const result=await call('/update-webhook-'+route,'PUT',{value});if(result?.value===false)throw new Error('A Z-API não confirmou o recebimento de eventos. Tente configurar novamente.');}
  await core.setting('zapi:webhooks',{ok:true,at:Date.now(),fingerprint:await fingerprint()});
 }
-export async function status(){const result=await call('/status');const state=result.connected===true?'connected':'offline';await recordZapiConnection(state,await instanceId());return {state,provider:'zapi',...(typeof result.phone==='string'?{phone:result.phone}:{}),smartphoneConnected:result.smartphoneConnected===true};}
+export async function status(){const result=await call('/status');if(typeof result?.connected!=='boolean')throw new Error('A Z-API retornou um status de conexão inválido. Tente novamente.');const state=result.connected?'connected':'offline';await recordZapiConnection(state,await instanceId());return {state,provider:'zapi',...(typeof result.phone==='string'?{phone:result.phone}:{}),smartphoneConnected:result.smartphoneConnected===true};}
 export function qrView(result:any){
  const image=typeof result==='string'?result:result?.value||result?.qrcode||result?.qrCode;
  const value=typeof image==='string'?(image.startsWith('data:image/png;base64,')?image:'data:image/png;base64,'+image):'';
