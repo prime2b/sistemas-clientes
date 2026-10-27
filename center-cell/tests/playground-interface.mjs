@@ -51,3 +51,9 @@ const delivered=renderToStaticMarkup(createElement(InboxView,{...props,messages:
 const read=renderToStaticMarkup(createElement(InboxView,{...props,messages:[{...props.messages[0],status:'read'}]}));assert.match(read,/aria-label="Lida pelo cliente"/);assert.match(read,/cx-receipt read/);
 const empty=renderToStaticMarkup(createElement(InboxView,{...props,selected:'',conversation:undefined,messages:[]}));assert.match(empty,/Selecione uma conversa para começar/);assert.match(empty,/Visão geral da central/);assert.ok(!empty.includes('PRÓXIMA DA FILA'));
 console.log('PASS WhatsApp presentation: compact composer, actual sender, truthful sent/delivered/read receipts and quiet empty state with overview access');
+
+const {default:WhatsAppPhone}=await import('../app/playground/whatsapp-phone.tsx');
+const phoneProps={messages:[],text:'',onText:noop,onSend:noop,onBack:noop,disabled:true,typing:true,clock:Date.now(),handoff:true};
+const agentTyping=renderToStaticMarkup(createElement(WhatsAppPhone,{...phoneProps,typingSide:'business',typingLabel:'Ana está preparando a resposta'}));assert.match(agentTyping,/digitando…/);assert.match(agentTyping,/wa-typing incoming/);assert.match(agentTyping,/role="status" aria-label="Ana está preparando a resposta"/);
+const clientTyping=renderToStaticMarkup(createElement(WhatsAppPhone,{...phoneProps,typingSide:'customer',typingLabel:'Cliente simulado está digitando'}));assert.match(clientTyping,/wa-typing outgoing/);assert.match(clientTyping,/Conta comercial/);assert.ok(!clientTyping.includes('>digitando…<'));
+console.log('PASS phone typing render: business animates incoming dots and contact status; customer animates outgoing dots without mislabeling the business');

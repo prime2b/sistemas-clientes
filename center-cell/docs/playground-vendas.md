@@ -25,3 +25,13 @@ A avaliação exige listagem completa antes do encaminhamento, ausência de orç
 Consultas de catálogo e preço são reais; mensagens, assunção e venda são simuladas. Nenhuma cobrança, reserva de estoque, mensagem ao WhatsApp ou pedido no ERP é criado pelo playground. A atendente automática usa textos contextuais; cliente e avaliador mantêm o modelo econômico e o orçamento de tokens. Os limites de tempo e consumo continuam sendo respeitados.
 
 Relatórios antigos conservam seus snapshots. Uma repetição cria execução nova com os mesmos produtos e o fluxo atual. O [checkpoint da versão 76](checkpoint-v76.md) preserva o código do comportamento anterior.
+
+## Digitação e proteção contra repetição
+
+O celular acompanha quem está preparando a próxima resposta: Ceci/atendente à esquerda e cliente simulado à direita. Pausa, histórico, espera por operação manual e recuo após falha não mostram digitação. A mensagem pendente do cliente usa o mesmo ID da versão persistida, evitando duplicação ao atualizar a tela. Mensagens históricas vazias não geram balões; mensagens distintas com texto igual permanecem visíveis.
+
+O aceite pode incluir o código e a quantidade exatos do orçamento, junto com retirada e Pix. Esses dados são verificados e aproveitados; a confirmação final da combinação continua obrigatória. Produto ou quantidade divergentes, recusa, perguntas e condições não confirmam a compra. Referências ambíguas a um SKU em um orçamento com vários itens exigem esclarecimento.
+
+A atendente não publica mensagens vazias. Uma resposta repetida sem mudança de etapa é interrompida antes de criar outra mensagem. Se um teste anterior já tiver um aceite válido registrado depois do mesmo orçamento, a rotina retoma a partir dessa evidência, sem reenviar nem consultar o modelo novamente. O histórico anterior não é apagado.
+
+Verificação: regressão do texto do print (código, duas unidades, aceite, retirada e Pix), fluxo até a venda simulada com um orçamento, retomada, bloqueio de duplicação, recibos/visibilidade do celular e renderização dos indicadores de digitação. Serviços de IA, ERP e envio são substituídos por fixtures nos testes isolados; isso não representa uma nova homologação com os provedores reais.

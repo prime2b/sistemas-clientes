@@ -4,8 +4,8 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 79.
-- Commit de origem: `fdbdbdc51cb96aef1c5f3f6e3a6811d46fb57882`.
+- Sites: versão 80.
+- Commit de origem: `899bccdeb8df905e7471da1ce54d50518412d5e5`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
@@ -27,6 +27,12 @@ A configuração de menu das demais telas é preservada. Não há alterações n
 As novas rotinas comerciais simulam o fluxo desde o “Oi”, passam pela fila compartilhada e pela ação de assumir, validam o orçamento feito pela atendente e chegam à confirmação final e venda simulada. Há modo manual, automático e equipe indisponível. Resultados antigos permanecem consultáveis. Consulte [o guia](docs/playground-vendas.md).
 
 Os testes usam isolamento e serviços simulados: não realizam venda, cobrança, pedido no ERP ou envio real ao WhatsApp. O teste interno não ativa a conexão de produção.
+
+## Correção das rotinas automáticas
+
+A versão 80 reconhece o aceite com o código e a quantidade exatos do orçamento junto com retirada e Pix. A conversa segue para a confirmação final, sem reorçar, gerar respostas vazias ou repetir a escolha. Testes parcialmente salvos podem reaproveitar o aceite já registrado depois do mesmo orçamento, sem nova chamada de IA. Alterações de item/quantidade e condições continuam exigindo esclarecimento.
+
+O celular mostra a digitação de Ceci, atendente e cliente simulado no lado correto. Pausa, histórico e espera manual ficam sem digitação. A mensagem pendente é substituída pela persistida com o mesmo ID. Nenhum menu, tema ou configuração de produção foi alterado nesta correção. A regressão do print e a retomada foram verificadas em runtime isolado, com serviços simulados; a renderização do indicador também foi verificada. Veja [o guia do playground](docs/playground-vendas.md).
 
 ## Checkpoint para retorno
 

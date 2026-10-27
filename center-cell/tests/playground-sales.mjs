@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {selectAttendantIndex} from '../lib/attendant-routing.ts';
-import {createSimulatedSale,applySaleCustomer,canCompleteSale,saleCriteria,pendingPurchaseConfirmation} from '../lib/playground-sales.ts';
+import {saleQuestion,createSimulatedSale,applySaleCustomer,canCompleteSale,saleCriteria,pendingPurchaseConfirmation} from '../lib/playground-sales.ts';
 const names=['Ana','Bia','Carla'];
 assert.equal(selectAttendantIndex(names,[0,1,2],{Ana:2,Bia:0,Carla:1}),1);
 assert.equal(selectAttendantIndex(names,[0,1,2],{},0),1);
@@ -35,3 +35,12 @@ assert.equal(saleCriteria(sale,log).find(c=>c.id==='sale-complete').status,'fail
 assert.ok(createSimulatedSale(log.map(m=>m.id==='yes'?{...m,body:'Estou de acordo, pode finalizar a compra das 2 unidades.'}:m),team));
 assert.equal(createSimulatedSale(log.map(m=>m.id==='yes'?{...m,body:'Pode finalizar a compra das 3 unidades.'}:m),team),null);
 console.log('PASS sales: shared routing, all-unavailable queue, exact accepted quote snapshot, delivery/payment, refusal, explicit final consent and separate sale completion');
+
+const compound='Código 10, duas unidades. Pode finalizar a compra; prefiro retirar na loja e pagar por Pix.';
+const sharedSale=()=>({...structuredClone(sale),shared:true,step:'quote_acceptance',consentMessageId:'',delivery:'',payment:'',confirmationMessageId:'',quote:{...structuredClone(quote),status:'awaiting'}});
+const compoundSale=sharedSale();assert.equal(applySaleCustomer(compoundSale,{id:'compound',body:compound},'Posso seguir com a compra?'),true);assert.equal(compoundSale.step,'confirmation');assert.equal(compoundSale.delivery,'retirada');assert.equal(compoundSale.payment,'pix');assert.equal(canCompleteSale(compoundSale),false,'purchase consent is not final sale confirmation');assert.ok(saleQuestion(compoundSale).includes('Posso concluir assim?'));
+for(const body of [compound.replace('Código 10','Código 99'),compound.replace('duas unidades','três unidades'),compound.replace('Pode finalizar','Não pode finalizar'),compound.replace('Pode finalizar','Posso finalizar?'),compound.replace('Pode finalizar a compra','Pode finalizar a compra se tiver desconto')]){const changed=sharedSale();assert.equal(applySaleCustomer(changed,{id:'unsafe',body},'Posso seguir com a compra?'),false,body);assert.equal(changed.consentMessageId,'');}
+assert.ok(saleQuestion(sharedSale()).trim(),'unrecognized consent must receive a real clarification, never an empty bubble');
+console.log('PASS compound confirmation: exact SKU/quantity plus pickup/Pix advances to final confirmation; changed item, quantity, refusal and conditions remain blocked');
+
+const multiple=sharedSale();multiple.quote.items=[{...quote.items[0],quantity:1},{...quote.items[0],productId:20,quantity:1}];assert.equal(applySaleCustomer(multiple,{id:'ambiguous',body:compound},'Posso seguir com a compra?'),false,'a single cited SKU and aggregate quantity cannot silently change a multi-item quote');
