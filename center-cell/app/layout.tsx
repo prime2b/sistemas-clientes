@@ -11,15 +11,13 @@ import "./navigation-collapse.css";
 import "./integrations-workspace.css";
 import "./admin-navigation.css";
 import "./action-colors.css";
+import "./shared-inbox.css";
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 
 export const metadata: Metadata = {
   title: "Center Cell",
   description: "Central de atendimento da Center Cell Distribuidora.",
-  other: {
-    "codex-preview": "development",
-  },
   manifest: "/site.webmanifest",
   themeColor: "#140507",
   icons: {

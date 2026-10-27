@@ -12,5 +12,6 @@ export default async function AttendantPage(){
   if(user.mustChangePassword)redirect('/conta');
   const attendant=await attendantFor(user);
   if(!attendant)return <main className="access-denied"><BrandLogo className="access-logo" height={56}/><h1>Acesso não liberado</h1><p>O administrador precisa cadastrar este e-mail como atendente e liberar o acesso ao site.</p></main>;
+  if((await (await import('../../lib/server/core')).config()).sharedInbox)redirect('/');
   return <AttendantWorkspace name={attendant.name} initialUser={user}/>;
 }

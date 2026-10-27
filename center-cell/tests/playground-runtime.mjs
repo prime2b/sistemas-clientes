@@ -52,7 +52,7 @@ globalThis.fetch=async(input,init)=>{const url=new URL(String(input));
 };
 const core=await import('../lib/server/core.ts');
 const runner=await import('../lib/server/playground-automatic.ts');
-await core.setting('config',{...core.defaults,enabled:false,instructions:'TOM CONFIGURADO DE TESTE'});
+await core.setting('config',{...core.defaults,flowMode:'quote',sharedInbox:false,enabled:false,instructions:'TOM CONFIGURADO DE TESTE'});
 await core.setting('ceci:manualPause',true);
 for(const p of products)await core.run('INSERT INTO products(id,name,search,category,data,synced) VALUES(?,?,?,?,?,?)',p.id,p.nome,p.nome.toLowerCase(),'Peças',JSON.stringify(p),Date.now());
 const owner='fixture-admin',args=(scenarios)=>({id:crypto.randomUUID(),scenarios,maxTurns:12,maxMinutes:15,maxTokens:100000,inputRate:1,outputRate:2});

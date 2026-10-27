@@ -19,7 +19,7 @@ export async function GET(request:Request){
   if(!conversation)return empty();
   if(!isOwner(user)){
     const attendant=await attendantFor(user);
-    if(!attendant||attendant.name!==conversation.assigned)return empty();
+    if(!attendant||!(await core.config()).sharedInbox&&attendant.name!==conversation.assigned||conversation.channel==='test')return empty();
   }
   if(conversation.channel!=='whatsapp_web'||!await instanceToken())return empty();
   const number=String(conversation.phone||'').startsWith('lid:')?String(conversation.phone).slice(4)+'@lid':String(conversation.phone||'');

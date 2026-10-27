@@ -1,4 +1,5 @@
 'use client';
+import SharedCentralPreview from './shared-central-preview';
 import {useEffect,useRef,useState} from 'react';
 import {Headphones,Inbox,Send,CheckCircle2,UserRound,Play,Clock,ShoppingBag} from 'lucide-react';
 import ChatCard from '../chat-card';
@@ -7,7 +8,7 @@ import {WhatsAppIcon} from '../whatsapp-icon';
 import {parseChatCard} from '../../lib/chat-cards';
 import {saleAttendant,saleQuestion,saleSteps,type SimulatedSale} from '../../lib/playground-sales';
 type Row=Record<string,any>;
-export default function AttendantPreview({sale,messages,busy,active,onAction}:{sale?:SimulatedSale;messages:Row[];busy:boolean;active:boolean;onAction:(operation:string,slot:number,revision:number,body?:string)=>Promise<void>}){
+function LegacyAttendantPreview({sale,messages,busy,active,onAction}:{sale?:SimulatedSale;messages:Row[];busy:boolean;active:boolean;onAction:(operation:string,slot:number,revision:number,body?:string)=>Promise<void>}){
  const [slot,setSlot]=useState<number>(sale?.assignedSlot||1),[text,setText]=useState(''),[detailsOpen,setDetailsOpen]=useState(false);const stream=useRef<HTMLDivElement>(null);
  useEffect(()=>{if(sale?.assignedSlot)setSlot(sale.assignedSlot);},[sale?.assignedSlot]);
  useEffect(()=>{if(stream.current)stream.current.scrollTop=stream.current.scrollHeight;},[messages]);
@@ -39,3 +40,5 @@ export default function AttendantPreview({sale,messages,busy,active,onAction}:{s
   </div>}
  </div>;
 }
+
+export default function AttendantPreview(props:Parameters<typeof LegacyAttendantPreview>[0]){return !props.sale||props.sale.shared?<SharedCentralPreview {...props}/>:<LegacyAttendantPreview {...props}/>;}

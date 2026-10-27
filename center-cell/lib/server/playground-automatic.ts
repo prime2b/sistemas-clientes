@@ -1,3 +1,4 @@
+import {prepareScenario} from '../playground-scenarios';
 import {saleCriteria,pendingPurchaseConfirmation} from '../playground-sales';
 import {receiveSimulatedSale,tickSimulatedSale,actAsSimulatedAttendant} from './playground-sales-runner';
 import {logAutomaticError} from './playground-errors';
@@ -15,7 +16,7 @@ type Row=Record<string,any>;
 const prefix='playground:auto:',slot='playground:autoSlot';
 export const terminalStates=['completed','stopped','takenOver','blocked'];
 const terminal=(state:string)=>terminalStates.includes(state);
-async function automaticFingerprint(cfg:Row){const bytes=new TextEncoder().encode(JSON.stringify(['conversational-sale-v2',await signature('internal',cfg),cfg.hours,await core.secret('MERCADOPHONE_API_KEY')]));return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function automaticFingerprint(cfg:Row){const bytes=new TextEncoder().encode(JSON.stringify(['shared-central-v1',await signature('internal',cfg),cfg.hours,await core.secret('MERCADOPHONE_API_KEY')]));return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');}
 export async function getAutomatic(id:string){return await core.getSetting(prefix+id) as Row|null;}
 export async function automaticControl(id:string){return await core.getSetting('playground:autoControl:'+id)||{state:'running'};}
 async function save(job:Row){job.updated=Date.now();await core.setting(prefix+job.id,job);}
@@ -39,7 +40,7 @@ export async function startAutomatic(owner:string,args:{id:string;scenarios:stri
  const retry=args.repeatOf?await getAutomatic(args.repeatOf):null;if(args.repeatOf&&(!retry||retry.owner!==owner))throw new Error('NOT_FOUND');
  const policy=createTestPolicy(cfg.model,args.testMode||'economic',{batchId:args.id,caseTokens:args.caseTokens||60000,maxTokens:args.maxTokens,rates:{[TEST_MODEL]:{input:args.inputRate,output:args.outputRate},...(cfg.model!==TEST_MODEL?{[cfg.model]:{input:args.productionInputRate||0,output:args.productionOutputRate||0}}:{})}});
  const avatars=await core.all("SELECT slot,avatar FROM app_users WHERE role='attendant' AND active=1 AND slot BETWEEN 1 AND 3");
- const job:Row={flowVersion:3,policy,mode:policy.mode,models:policy.models,productionModel:cfg.model,id:args.id,owner,created:Date.now(),updated:Date.now(),index:0,phase:'setup',limits:{maxTurns:args.maxTurns,maxMinutes:args.maxMinutes,maxTokens:args.maxTokens},rates:{input:args.inputRate,output:args.outputRate},snapshot:{team:cfg.team,avatars:[1,2,3].map(slot=>avatars.find(a=>a.slot===slot)?.avatar||''),name:cfg.name,model:policy.models.ceci,instructions:cfg.instructions,greeting:cfg.greeting,handoff:cfg.handoff,hours:cfg.hours},fingerprint:await automaticFingerprint(cfg),usage:{input:0,output:0,unknown:0},options:{attendantMode:args.attendantMode||'automatic',productBrand:args.productBrand||'auto',openingVariant:args.openingVariant||'auto'},cases:args.scenarios.map((scenario,index)=>({scenario,scenarioSnapshot:retry?.cases.find((c:Row)=>c.scenario===scenario)?.scenarioSnapshot||materializeScenario(autoScenario(scenario)!,selections[index],args.openingVariant||'auto',args.id+':'+index),turns:0,elapsed:0,attempts:0,stage:'Preparando cenário',result:'pending',criteria:[],quality:null,expectations:[],responses:[]}))};
+ const job:Row={flowVersion:4,policy,mode:policy.mode,models:policy.models,productionModel:cfg.model,id:args.id,owner,created:Date.now(),updated:Date.now(),index:0,phase:'setup',limits:{maxTurns:args.maxTurns,maxMinutes:args.maxMinutes,maxTokens:args.maxTokens},rates:{input:args.inputRate,output:args.outputRate},snapshot:{flowMode:cfg.flowMode,team:cfg.team,avatars:[1,2,3].map(slot=>avatars.find(a=>a.slot===slot)?.avatar||''),name:cfg.name,model:policy.models.ceci,instructions:cfg.instructions,greeting:cfg.greeting,handoff:cfg.handoff,hours:cfg.hours},fingerprint:await automaticFingerprint(cfg),usage:{input:0,output:0,unknown:0},options:{attendantMode:args.attendantMode||'automatic',productBrand:args.productBrand||'auto',openingVariant:args.openingVariant||'auto'},cases:args.scenarios.map((scenario,index)=>({scenario,scenarioSnapshot:prepareScenario(retry?.cases.find((c:Row)=>c.scenario===scenario)?.scenarioSnapshot||materializeScenario(autoScenario(scenario)!,selections[index],args.openingVariant||'auto',args.id+':'+index),cfg.flowMode),turns:0,elapsed:0,attempts:0,stage:'Preparando cenário',result:'pending',criteria:[],quality:null,expectations:[],responses:[]}))};
  await save(job);await core.setting('playground:autoControl:'+job.id,{state:'running'});return job;
  }catch(e){await core.run("DELETE FROM settings WHERE key=? AND json_extract(value,'$.id')=?",slot,args.id);throw e;}
 }
@@ -158,7 +159,7 @@ export async function tickAutomatic(id:string,owner:string){
 }
 
 /** Admin-only simulation actions, serialized with the same lease as automatic ticks. */
-export async function automaticAttendantAction(id:string,owner:string,args:{operation:'assume'|'reply'|'complete'|'automate';slot:number;revision:number;body?:string}){
+export async function automaticAttendantAction(id:string,owner:string,args:{operation:'assume'|'reply'|'complete'|'automate'|'quote';slot:number;revision:number;body?:string}){
  const job=await getAutomatic(id);if(!job||job.owner!==owner)throw new Error('NOT_FOUND');
  if(terminal((await automaticControl(id)).state)||job.phase!=='attendant')throw new Error('AUTO_SALE_STALE');
  const token=crypto.randomUUID(),key='playground:autoLease:'+id,now=Date.now();

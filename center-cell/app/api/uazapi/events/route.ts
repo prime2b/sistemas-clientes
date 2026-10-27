@@ -58,8 +58,8 @@ export async function POST(request:Request){
     const agentHasReplied=conversation!.status==='human'&&!conversation!.assigned
       ? !!await core.one("SELECT id FROM messages WHERE conversation_id=? AND role='agent' AND deleted_at=0 LIMIT 1",conversationId)
       : false;
-    const restart=shouldRestartWithCeci(conversation! as {status:string;assigned:string},cfg.enabled,!!body,agentHasReplied);
-    await core.run("UPDATE conversations SET last_inbound=?,archived_at=0,status=?,assigned=? WHERE id=?",Date.now(),restart?'bot':conversation!.status,restart?'':conversation!.assigned,conversationId);
+    const restart=shouldRestartWithCeci(conversation! as {status:string;assigned:string},cfg.enabled,!!body,agentHasReplied,cfg.sharedInbox);
+    await core.run("UPDATE conversations SET last_inbound=?,archived_at=0,status=?,assigned=? WHERE id=?",Date.now(),restart?'bot':conversation!.status==='closed'?'human':conversation!.status,restart?'':conversation!.assigned,conversationId);
     if(restart&&conversation!.status==='closed')await core.resetCeciOrder(conversationId);
     await core.addMessage(conversationId,'user',body||'[Mídia recebida. Atendimento humano necessário.]','received',id);
     await core.setting('check:whatsappWebReceived',{at:Date.now()});

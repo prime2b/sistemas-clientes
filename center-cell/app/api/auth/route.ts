@@ -48,7 +48,7 @@ export async function POST(request:Request){
     await core.run("UPDATE app_users SET last_login=?,presence='available' WHERE id=?",Date.now(),row.id);
     const token=await createSession(String(row.id));
     const user=publicUser({...row,presence:'available'});
-    return json({user,redirect:user.mustChangePassword?'/conta':user.role==='admin'?'/':'/atendente'},200,sessionCookie(token));
+    return json({user,redirect:user.mustChangePassword?'/conta':'/'},200,sessionCookie(token));
   }catch(error){
     if(error instanceof z.ZodError)return json({error:'Confira usuário e senha.'},400);
     console.error('cc_auth_error',stage,error instanceof Error?error.name:'unknown',error instanceof Error?error.message:'');

@@ -41,7 +41,7 @@ globalThis.fetch=async (input,init)=>{
  throw new Error('Unexpected request: '+url.origin+url.pathname);
 };
 const core=await import('../lib/server/core.ts');
-await core.setting('config',{...core.defaults,enabled:true,greeting:'FIXED_GREETING_MUST_NOT_BE_SENT',instructions:'TOM CONFIGURADO DE TESTE'});
+await core.setting('config',{...core.defaults,flowMode:'quote',sharedInbox:false,enabled:true,greeting:'FIXED_GREETING_MUST_NOT_BE_SENT',instructions:'TOM CONFIGURADO DE TESTE'});
 const id=crypto.randomUUID();
 await core.run("INSERT INTO conversations(id,name,phone,channel,profile,status,updated,customer_status,customer_name) VALUES(?,?,?,'whatsapp_web','lojista','bot',?,'verified',?)",id,'Fixture','5511999999999',Date.now(),'Cliente');
 for(const n of [101,102])await core.run('INSERT INTO products(id,name,search,category,data,synced) VALUES(?,?,?,?,?,?)',n,raw(n).nome,raw(n).nome.toLowerCase(),'Peças',JSON.stringify(raw(n)),Date.now());

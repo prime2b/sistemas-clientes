@@ -1,24 +1,30 @@
 # Center Cell — Central de atendimento
 
-Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, catálogo MercadoPhone, orçamentos, painéis de atendentes e integração WhatsApp via UAZAPI.
+Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, catálogo MercadoPhone, orçamentos, central compartilhada de atendentes e integração WhatsApp via UAZAPI.
 
 ## Versão desta publicação
 
-- Sites: versão 76.
-- Commit de origem: `8ce90ce7697b45f98b2e9ed31203f57ae9dbc96a`.
-- Aplicação: https://center-cell-atendimento.fredborrasca.chatgpt.site
-- Produção: modelo configurado `gpt-5.6-terra`.
-- Novos testes econômicos do playground: `gpt-5.6-luna`. Homologação permite usar o modelo de produção para a Ceci.
+- Sites: versão 77.
+- Commit de origem: `e745dc69fc9e069c5fc470354c0b421c1d4370a7`.
+- Aplicação: https://center-cell-atendimento.netlify.app
+- Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
+- Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
 
-## Atendimento completo no playground
+## Central compartilhada e atendimento curto
 
-Confirmações como “pode finalizar a compra das 2 unidades” são aceitas quando correspondem à quantidade do orçamento, com verificação no motor e na avaliação.
+A Ceci identifica peça e modelo, consulta o catálogo e lista todos os produtos disponíveis com valores verificados. Depois encaminha imediatamente para a fila da central. A atendente assume na mesma interface, escolhe produtos e quantidades com o cliente, gera o orçamento e conclui o atendimento. Mensagens posteriores não reativam a Ceci sem devolução explícita à IA.
 
-O cliente simulado não pode encerrar a rotina ao receber o orçamento: a confirmação precisa passar pelo motor Ceci e a venda só é concluída após a confirmação final com a atendente.
+Admin e atendentes usam o mesmo painel, mantendo seus logins e permissões. Há filtros de não lidas, não atribuídas, atribuídas, minhas conversas e finalizadas. A leitura é individual e a atribuição impede duas pessoas de assumir o mesmo atendimento. O visual inspirado no WhatsApp está limitado à área de atendimento.
 
-As rotinas comerciais continuam após a Ceci: recebimento no painel de uma das três atendentes simuladas, combinação de retirada/entrega e pagamento, confirmação final e venda simulada concluída. Há condução automática, modo manual e cenário de equipe indisponível. As mensagens automáticas da atendente usam textos contextuais sem gasto extra de IA; cliente e avaliador permanecem no modo econômico. Consulte [o guia](docs/playground-vendas.md).
+## Playground
 
-A voz da Ceci foi ajustada para linguagem mais simples, mantendo nomes oficiais dos produtos e as regras de consulta. Nenhuma venda, cobrança ou envio real é realizado pelo playground.
+As novas rotinas comerciais simulam o fluxo desde o “Oi”, passam pela fila compartilhada e pela ação de assumir, validam o orçamento feito pela atendente e chegam à confirmação final e venda simulada. Há modo manual, automático e equipe indisponível. Resultados antigos permanecem consultáveis. Consulte [o guia](docs/playground-vendas.md).
+
+Os testes usam isolamento e serviços simulados: não realizam venda, cobrança, pedido no ERP ou envio real ao WhatsApp. O teste interno não ativa a conexão de produção.
+
+## Checkpoint para retorno
+
+A versão anterior está preservada em [checkpoint/center-cell-v76-before-shared-inbox-2026-10-27](https://github.com/prime2b/sistemas-clientes/tree/checkpoint/center-cell-v76-before-shared-inbox-2026-10-27). Para retornar, publicar novamente esse código, preservando os dados posteriores. Veja [o procedimento](docs/checkpoint-v76.md). As migrações novas são aditivas; o checkpoint não é uma cópia do banco em um instante específico.
 
 ## Estrutura
 

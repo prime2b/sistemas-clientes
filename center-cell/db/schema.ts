@@ -5,12 +5,13 @@ import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlit
 export const settings = sqliteTable('settings', { key: text('key').primaryKey(), value: text('value').notNull() });
 export const conversations = sqliteTable('conversations', {
  id: text('id').primaryKey(), name: text('name').notNull(), phone: text('phone').notNull().default(''), channel: text('channel').notNull().default('test'),
+ assignedUserId:text('assigned_user_id').notNull().default(''), claimedAt:integer('claimed_at').notNull().default(0),
  profile: text('profile').notNull().default('nao_identificado'), status: text('status').notNull().default('bot'), assigned: text('assigned').notNull().default(''),
  notes: text('notes').notNull().default(''), updated: integer('updated').notNull(), lastInbound: integer('last_inbound').notNull().default(0), archivedAt: integer('archived_at').notNull().default(0),
  customerStatus: text('customer_status').notNull().default('unchecked'), customerId: integer('customer_id'),
  customerName: text('customer_name').notNull().default(''), customerCheckedAt: integer('customer_checked_at').notNull().default(0)
-}, t=>[index('conversation_updated_idx').on(t.updated),index('conversation_phone_idx').on(t.phone)]);
-export const messages = sqliteTable('messages', {id:text('id').primaryKey(), conversationId:text('conversation_id').notNull().references(()=>conversations.id), role:text('role').notNull(), body:text('body').notNull(), status:text('status').notNull().default('saved'), cardData:text('card_data').notNull().default(''), created:integer('created').notNull(), deletedAt:integer('deleted_at').notNull().default(0)},t=>[index('message_conversation_idx').on(t.conversationId,t.created)]);
+}, t=>[index('shared_inbox_owner_idx').on(t.assignedUserId,t.status),index('conversation_updated_idx').on(t.updated),index('conversation_phone_idx').on(t.phone)]);
+export const messages = sqliteTable('messages', {id:text('id').primaryKey(), conversationId:text('conversation_id').notNull().references(()=>conversations.id), role:text('role').notNull(), authorId:text('author_id').notNull().default(''), authorName:text('author_name').notNull().default(''), body:text('body').notNull(), status:text('status').notNull().default('saved'), cardData:text('card_data').notNull().default(''), created:integer('created').notNull(), deletedAt:integer('deleted_at').notNull().default(0)},t=>[index('message_conversation_idx').on(t.conversationId,t.created)]);
 export const products = sqliteTable('products', {id:integer('id').primaryKey(),name:text('name').notNull(),search:text('search').notNull(),category:text('category').notNull(),data:text('data').notNull(),synced:integer('synced').notNull(),type:text('type').notNull().default('outros'),brand:text('brand').notNull().default('Outras'),models:text('models').notNull().default('[]'),variant:text('variant').notNull().default(''),displayName:text('display_name').notNull().default(''),enriched:integer('enriched').notNull().default(0)},t=>[index('product_type_idx').on(t.type),index('product_brand_idx').on(t.brand)]);
 export const quotes = sqliteTable('quotes', {id:text('id').primaryKey(),name:text('name').notNull(),profile:text('profile').notNull(),conversationId:text('conversation_id').notNull().default(''),data:text('data').notNull(),total:integer('total').notNull(),created:integer('created').notNull(),deletedAt:integer('deleted_at').notNull().default(0),supersededBy:text('superseded_by').notNull().default('')},t=>[index('quote_created_idx').on(t.created)]);
 
@@ -37,3 +38,5 @@ export const appSessions = sqliteTable('app_sessions', {
 export const loginThrottle = sqliteTable('login_throttle', {
  key:text('key').primaryKey(),failures:integer('failures').notNull(),windowStart:integer('window_start').notNull(),lockUntil:integer('lock_until').notNull().default(0)
 });
+
+export const conversationReads=sqliteTable('conversation_reads',{userId:text('user_id').notNull(),conversationId:text('conversation_id').notNull(),lastReadSeq:integer('last_read_seq').notNull().default(0),forcedUnread:integer('forced_unread').notNull().default(0)},t=>[primaryKey({columns:[t.userId,t.conversationId]})]);

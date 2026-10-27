@@ -22,6 +22,7 @@ async function access(request:Request){
   const user=await currentUser(request);
   if(!user)return {error:json({error:'Entre na sua conta para acessar o painel.'},401)};
   if(user.mustChangePassword)return {error:json({error:'Altere sua senha inicial antes de continuar.'},403)};
+  if((await core.config()).sharedInbox)return {error:json({error:'Use a central compartilhada no endereço principal.',redirect:'/'},410)};
   const attendant=await attendantFor(user);
   if(!attendant)return {error:json({error:'Seu acesso de atendente não está liberado.'},403)};
   return {attendant};

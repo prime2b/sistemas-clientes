@@ -5,7 +5,7 @@ export async function signature(service: Service | 'internal', cfg: Record<strin
   const keys = service === 'whatsapp' ? ['WHATSAPP_TOKEN'] : ['OPENAI_API_KEY'];
   const values = await Promise.all(keys.map(core.secret));
   const context = service === 'whatsapp' ? [cfg.phoneId,cfg.graphVersion] : service === 'internal'
-    ? [cfg.model,cfg.name,cfg.greeting,cfg.instructions,cfg.handoff] : [cfg.model];
+    ? ['shared-inbox-v1',cfg.flowMode,cfg.handoffAssignment,cfg.catalogPricing,cfg.model,cfg.name,cfg.greeting,cfg.instructions,cfg.handoff] : [cfg.model];
   const digest = await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([...context,...values])));
   return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
 }

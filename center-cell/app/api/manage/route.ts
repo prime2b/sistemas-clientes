@@ -1,3 +1,4 @@
+import {sharedGet,sharedPost,sharedActions,listSharedConversations} from '../../../lib/server/shared-inbox';
 import {TEST_MODEL,testModels} from '../../../lib/playground-economy';
 import {createTestPolicy,getTestPolicy,testUsage} from '../../../lib/server/playground-meter';
 import {processCeci,canResumeCeciValidation,resumeCeciValidation} from '../../../lib/server/ceci-inbound';
@@ -19,7 +20,7 @@ import {prepareQuote,centerCellPolicy} from '../../../lib/erp/quote';
 export const dynamic='force-dynamic';
 const profile=z.enum(['lojista','consumidor_final','nao_identificado']);
 const quoteItems=z.array(z.object({productId:z.number().int().positive(),quantity:z.number().int().min(1).max(10000)})).min(1).max(30);
-const configSchema=z.object({name:z.string().min(1).max(80),greeting:z.string().min(1).max(800),instructions:z.string().max(6000),handoff:z.string().min(1).max(800),enabled:z.boolean(),model:z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/),whatsappMode:z.enum(['web','cloud']).default('web'),phoneId:z.string().regex(/^\d{0,40}$/),graphVersion:z.string().regex(/^v\d+\.\d+$/),team:z.array(z.string().trim().min(1).max(60)).length(3).refine(items=>new Set(items.map(item=>item.toLocaleLowerCase('pt-BR'))).size===3),hours:z.string().max(300)});
+const configSchema=z.object({flowMode:z.enum(['catalog_handoff','quote']).default('catalog_handoff'),sharedInbox:z.boolean().default(true),handoffAssignment:z.enum(['manual','automatic']).default('manual'),catalogPricing:z.enum(['lojista','identified']).default('lojista'),name:z.string().min(1).max(80),greeting:z.string().min(1).max(800),instructions:z.string().max(6000),handoff:z.string().min(1).max(800),enabled:z.boolean(),model:z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/),whatsappMode:z.enum(['web','cloud']).default('web'),phoneId:z.string().regex(/^\d{0,40}$/),graphVersion:z.string().regex(/^v\d+\.\d+$/),team:z.array(z.string().trim().min(1).max(60)).length(3).refine(items=>new Set(items.map(item=>item.toLocaleLowerCase('pt-BR'))).size===3),hours:z.string().max(300)});
 const actions=z.discriminatedUnion('action',[
   z.object({action:z.literal('config'),config:configSchema,automationIntent:z.boolean().optional()}),
   z.object({action:z.literal('secret'),key:z.enum(['OPENAI_API_KEY','MERCADOPHONE_API_KEY','WHATSAPP_TOKEN','META_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_WEB_BRIDGE_TOKEN','UAZAPI_ADMIN_TOKEN','UAZAPI_INSTANCE_TOKEN']),value:z.string().min(8).max(4000)}),
@@ -58,7 +59,7 @@ async function quoteStockChanges(items:{productId:number;quantity:number}[]){
 export async function GET(request:Request){
   const user=await currentUser(request);
   if(!user)return json({error:'Entre na sua conta para acessar a central.'},401);
-  if(!isOwner(user))return json({error:'Acesso restrito à administração.'},403);
+  if(!isOwner(user)){if(user.mustChangePassword)return json({error:'Altere sua senha inicial.'},403);try{return await sharedGet(request,user);}catch{return json({error:'Parâmetros inválidos.'},400);}}
   if(user.mustChangePassword)return json({error:'Altere sua senha inicial antes de continuar.'},403);
   try{
     const u=new URL(request.url);
@@ -89,20 +90,22 @@ export async function GET(request:Request){
       teamAvailable:await core.all("SELECT id,display_name AS name,avatar,slot FROM app_users WHERE role='attendant' AND active=1 AND presence='available' ORDER BY slot")
     };
     const secrets=Object.fromEntries(await Promise.all(['MERCADOPHONE_API_KEY','OPENAI_API_KEY','WHATSAPP_TOKEN','META_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_WEB_BRIDGE_TOKEN','UAZAPI_ADMIN_TOKEN','UAZAPI_INSTANCE_TOKEN'].map(async key=>[key,!!await core.secret(key)])));
-    return json({config:cfg,secrets,navigation,webBridge:await core.getSetting('whatsappWebBridge'),uazapiUrl:await baseUrl(),uazapiWebhookReady:!!core.runtime.UAZAPI_WEBHOOK_URL,activation:await integrationStatus(cfg),ceciPaused:!!await core.getSetting('ceci:manualPause'),ceciReply:await core.getSetting('check:ceciReply'),autoSync:await autoSyncSettings(core.db()),webReceivedAt:(await core.getSetting('check:whatsappWebReceived'))?.at||0,whatsappReady:cfg.whatsappMode==='web'?!!(await core.secret('UAZAPI_INSTANCE_TOKEN')&&core.runtime.UAZAPI_WEBHOOK_URL&&(await core.getSetting('check:whatsappWeb'))?.connected&&(await core.getSetting('check:whatsappWebReceived'))):core.runtime.WHATSAPP_WEBHOOK_PUBLIC==='true',conversations:await core.all("SELECT c.*,(SELECT body FROM messages WHERE conversation_id=c.id AND deleted_at=0 ORDER BY created DESC,id DESC LIMIT 1) AS preview,(SELECT role FROM messages WHERE conversation_id=c.id AND deleted_at=0 ORDER BY created DESC,id DESC LIMIT 1) AS lastMessageRole,(SELECT created FROM messages WHERE conversation_id=c.id AND deleted_at=0 ORDER BY created DESC,id DESC LIMIT 1) AS lastMessageAt,(SELECT MAX(created) FROM messages WHERE conversation_id=c.id AND deleted_at=0 AND role='agent') AS lastAgentAt,(SELECT body FROM messages WHERE conversation_id=c.id AND deleted_at=0 AND role='note' AND body LIKE '%Encaminhamento%' ORDER BY created DESC LIMIT 1) AS handoffNote FROM conversations c WHERE c.channel!='test' ORDER BY updated DESC LIMIT 200"),quotes:await core.all("SELECT q.* FROM quotes q LEFT JOIN conversations c ON c.id=q.conversation_id WHERE q.deleted_at=0 AND q.superseded_by='' AND (q.conversation_id='' OR (c.id IS NOT NULL AND c.channel!='test')) ORDER BY q.created DESC LIMIT 100"),catalog:await core.one('SELECT COUNT(*) AS count,MAX(synced) AS synced FROM products'),sync:await core.getSetting('sync'),erpCheck:await core.getSetting('erpCheck'),categories:await core.all('SELECT DISTINCT category FROM products ORDER BY category')});
+    return json({config:cfg,secrets,navigation,webBridge:await core.getSetting('whatsappWebBridge'),uazapiUrl:await baseUrl(),uazapiWebhookReady:!!core.runtime.UAZAPI_WEBHOOK_URL,activation:await integrationStatus(cfg),ceciPaused:!!await core.getSetting('ceci:manualPause'),ceciReply:await core.getSetting('check:ceciReply'),autoSync:await autoSyncSettings(core.db()),webReceivedAt:(await core.getSetting('check:whatsappWebReceived'))?.at||0,whatsappReady:cfg.whatsappMode==='web'?!!(await core.secret('UAZAPI_INSTANCE_TOKEN')&&core.runtime.UAZAPI_WEBHOOK_URL&&(await core.getSetting('check:whatsappWeb'))?.connected&&(await core.getSetting('check:whatsappWebReceived'))):core.runtime.WHATSAPP_WEBHOOK_PUBLIC==='true',conversations:await listSharedConversations(user),quotes:await core.all("SELECT q.* FROM quotes q LEFT JOIN conversations c ON c.id=q.conversation_id WHERE q.deleted_at=0 AND q.superseded_by='' AND (q.conversation_id='' OR (c.id IS NOT NULL AND c.channel!='test')) ORDER BY q.created DESC LIMIT 100"),catalog:await core.one('SELECT COUNT(*) AS count,MAX(synced) AS synced FROM products'),sync:await core.getSetting('sync'),erpCheck:await core.getSetting('erpCheck'),categories:await core.all('SELECT DISTINCT category FROM products ORDER BY category')});
   }catch{return json({error:'Não foi possível carregar os dados. Tente novamente.'},503);}
 }
 
 export async function POST(request:Request){
   const user=await currentUser(request);
   if(!user)return json({error:'Acesso restrito.'},401);
-  if(!isOwner(user))return json({error:'Acesso restrito à administração.'},403);
   if(user.mustChangePassword)return json({error:'Altere sua senha inicial antes de continuar.'},403);
   const origin=request.headers.get('origin');
   if(origin&&origin!==new URL(request.url).origin)return json({error:'Origem inválida.'},403);
   try{
     if(Number(request.headers.get('content-length')||0)>30000)return json({error:'Conteúdo muito extenso.'},413);
-    const a=actions.parse(await request.json());
+    const raw=await request.json() as Record<string,any>;
+    if(sharedActions.has(raw.action)){const handled=await sharedPost(request,user,raw);if(handled)return handled;}
+    if(!isOwner(user))return json({error:'Acesso restrito à administração.'},403);
+    const a=actions.parse(raw);
     switch(a.action){
       case 'config':{
         const previous=await core.config();

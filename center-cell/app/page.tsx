@@ -10,6 +10,6 @@ export default async function Page(){
   if(!user)redirect('/login');
   if(user.mustChangePassword)redirect('/conta');
   if(isOwner(user))return <Dashboard initialUser={user}/>;
-  if(await attendantFor(user))redirect('/atendente');
+  if(await attendantFor(user))return <Dashboard initialUser={user}/>;
   return <main className="access-denied"><BrandLogo className="access-logo" height={56}/><h1>Acesso não liberado</h1><p>Peça à administração da Center Cell para cadastrar seu e-mail e autorizar seu acesso ao painel.</p></main>;
 }

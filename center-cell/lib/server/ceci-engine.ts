@@ -44,7 +44,8 @@ export async function runCeciAgent(args:{config:AssistantConfig;context:Assistan
   const knownIds=()=>new Set([...memory.products.map(p=>p.id),...memory.cart.map(p=>p.productId)]);
   const latestUser=args.messages.filter(m=>m.role==='user').at(-1);
   const lastAssistant=latestUser?args.messages.slice(0,args.messages.indexOf(latestUser)).filter(m=>m.role!=='user').at(-1)?.body||'':'';
-  const acceptedQuote=!!latestUser&&!!memory.currentQuoteId&&!!args.quotePresentedAt&&latestUser.created>=args.quotePresentedAt&&confirmsPurchase(latestUser.body,lastAssistant,memory.cart);
+  const catalogFlow=config.flowMode==='catalog_handoff';
+  const acceptedQuote=!catalogFlow&&!!latestUser&&!!memory.currentQuoteId&&!!args.quotePresentedAt&&latestUser.created>=args.quotePresentedAt&&confirmsPurchase(latestUser.body,lastAssistant,memory.cart);
   const requestedRefresh=/atualiz|recalcul|revalid|refa[çz]|nova\s+(?:cota[çc][aã]o|consulta)|novo\s+or[çc]amento|(?:consult|confer).{0,30}(?:novamente|de novo)|retom|recuper/i.test(latestUser?.body||'');
   const sameOrder=(next:RequestedItem[])=>next.length===memory.cart.length&&next.every(item=>memory.cart.some(old=>old.productId===item.productId&&old.quantity===item.quantity));
   const purchaseContext=()=>({orcamentoVigente:memory.currentQuoteId,mensagemId:latestUser!.id,note:'O cliente já confirmou a compra do orçamento vigente apresentado. Não há alteração de itens. Conclua agora com encaminhar_humano, motivo compra_confirmada, estes IDs e um resumo contextual. Não consulte ou gere outro orçamento e não peça nova confirmação. A equipe concluirá pagamento e entrega.'});
@@ -53,9 +54,23 @@ export async function runCeciAgent(args:{config:AssistantConfig;context:Assistan
     applyContext(memory,ctx,evidenceIds);memory.introduced=true;
     return {text,nextStep,memory,profile:context.profile,draft,products,catalog,checkedAt,previousQuoteId:args.memory.currentQuoteId};
   };
+  const catalogHandoff=(query:string):AgentResult=>{
+    const original=catalog||[],available=original.filter(p=>p.status==='available');
+    catalog=available.length?available:undefined;products=undefined;draft=undefined;
+    memory.lastOptions=available.map(p=>p.productId);
+    memory.pending='Equipe confirmar escolha e quantidade e montar o orçamento final.';memory.nextAction='Aguardar atendente na central compartilhada.';
+    const reply=finish(available.length?'Estas são as opções disponíveis para o que você pediu:':original.some(p=>p.status==='unconfirmed')?'Não consegui confirmar os valores e a disponibilidade agora. A equipe vai conferir com você.':'Não localizei opções disponíveis para esse pedido agora. Vou passar para a equipe conferir.',available.length?'Vou passar para a equipe continuar com você.':'',undefined);
+    reply.handoff={reason:available.length?'catalogo_listado':'informacao_nao_confirmada',summary:'Pedido consultado: '+query+'. Produtos confirmados apresentados: '+available.map(p=>p.productId+' — '+p.name).join('; ')+'. Informações já fornecidas pelo cliente: '+args.messages.filter(m=>m.role==='user').slice(-8).map(m=>m.body).join(' | ')+'. A equipe continuará escolha, quantidade, orçamento e compra.',quoteId:null,messageId:latestUser!.id};
+    return reply;
+  };
+  if(catalogFlow&&context.profile==='consumidor_final'||catalogFlow&&context.profile==='nao_identificado'){
+    const reply=finish('Vou passar para a equipe confirmar as condições e continuar com você.','',undefined);
+    reply.handoff={reason:'informacao_nao_confirmada',summary:'Condições comerciais precisam de confirmação. Aproveitar o pedido: '+args.messages.filter(m=>m.role==='user').slice(-8).map(m=>m.body).join(' | '),quoteId:null,messageId:latestUser!.id};return reply;
+  }
+  if(catalogFlow&&catalog?.length)return catalogHandoff(catalogQuery||'Pedido do cliente');
   for(let step=resumed?.step||0;step<12;step++){
     await ports.active();
-    const output=await ports.respond(buildAssistantInstructions(config,context),input,acceptedQuote?assistantTools.filter(tool=>tool.name==='encaminhar_humano'):assistantTools);
+    const output=await ports.respond(buildAssistantInstructions(config,context),input,acceptedQuote?assistantTools.filter(tool=>tool.name==='encaminhar_humano'):catalogFlow?assistantTools.filter(tool=>!['consultar_e_orcar','recuperar_orcamento','consultar_opcoes','definir_perfil'].includes(tool.name)):assistantTools);
     await ports.active();
     input.push(...output);
     const calls=output.filter(item=>item.type==='function_call');
@@ -65,7 +80,8 @@ export async function runCeciAgent(args:{config:AssistantConfig;context:Assistan
       let result:unknown;
       try{
         const a=JSON.parse(String(call.arguments||'{}')) as Record<string,any>;
-        if(acceptedQuote&&call.name!=='encaminhar_humano'){
+        if(catalogFlow&&['consultar_e_orcar','recuperar_orcamento','consultar_opcoes','definir_perfil'].includes(call.name)){result={error:'Fluxo curto: consulte a lista completa; a equipe cuida do orçamento e das condições.'};
+        }else if(acceptedQuote&&call.name!=='encaminhar_humano'){
           // Enforce the state even if a provider returns a tool that was not offered.
           result=purchaseContext();
         }else if(call.name==='listar_todas_opcoes'){
@@ -73,6 +89,7 @@ export async function runCeciAgent(args:{config:AssistantConfig;context:Assistan
           if(!ports.catalog)throw new Error('ERP_NETWORK_ERROR');
           const query=String(a.busca||'').trim().slice(0,160);
           const found=await ports.catalog(query);await ports.active();
+          if(catalogFlow){catalog=found.items;checkedAt=found.checkedAt;mergeProducts(memory,found.items.map(p=>({id:p.productId,name:p.name})));return catalogHandoff(query);}
           if(!found.total){result={items:[],note:'Nenhum SKU localizado para esta peça e modelo exatos. Tente sinônimo de peça antes de afirmar indisponibilidade.'};}
           else{
             catalog=found.items;catalogQuery=query;draft=undefined;products=undefined;

@@ -20,7 +20,7 @@ export const db=()=>runtime.DB;
 export const all=async(sql:string,...args:unknown[]) => (await db().prepare(sql).bind(...args).all()).results as Record<string,any>[];
 export const one=async(sql:string,...args:unknown[]) => await db().prepare(sql).bind(...args).first() as Record<string,any>|null;
 export const run=async(sql:string,...args:unknown[])=>db().prepare(sql).bind(...args).run();
-export const defaults={name:'Ceci',greeting:'Oi! Sou a Ceci, assistente da CenterCell. O que você está procurando hoje?',instructions:'Entenda rápido, consulte com precisão e resolva sem enrolação. Seja simpática, natural, tecnicamente competente e direta. Faça uma pergunta por vez, use humor leve somente quando apropriado e nunca sacrifique precisão para manter a conversa fluida.',handoff:'Certo, vou passar seu atendimento para uma pessoa da equipe continuar com você. Já deixei todo o contexto organizado para você não precisar repetir nada.',enabled:false,model:CECI_DEFAULT_MODEL,whatsappMode:'web' as const,phoneId:'',graphVersion:'v23.0',team:['Atendente 1','Atendente 2','Atendente 3'],hours:'Segunda a sexta, 08h às 18h — confirmar com a equipe'};
+export const defaults={name:'Ceci',greeting:'Oi! Sou a Ceci, assistente da CenterCell. O que você está procurando hoje?',instructions:'Entenda rápido, consulte com precisão e resolva sem enrolação. Seja simpática, natural, tecnicamente competente e direta. Faça uma pergunta por vez, use humor leve somente quando apropriado e nunca sacrifique precisão para manter a conversa fluida.',handoff:'Certo, vou passar seu atendimento para uma pessoa da equipe continuar com você. Já deixei todo o contexto organizado para você não precisar repetir nada.',enabled:false,flowMode:'catalog_handoff' as 'catalog_handoff'|'quote',sharedInbox:true,handoffAssignment:'manual' as 'manual'|'automatic',catalogPricing:'lojista' as 'lojista'|'identified',model:CECI_DEFAULT_MODEL,whatsappMode:'web' as const,phoneId:'',graphVersion:'v23.0',team:['Atendente 1','Atendente 2','Atendente 3'],hours:'Segunda a sexta, 08h às 18h — confirmar com a equipe'};
 const PERSONA_REVISION='ceci-2';
 function normalizeTeam(value:unknown){
   const names=Array.isArray(value)?value.map(item=>String(item||'').trim().slice(0,60)).filter(Boolean).slice(0,3):[];
@@ -59,10 +59,10 @@ export async function saveConfig(value:Record<string,unknown>){
 }
 export async function routeToAttendant(id:string,teamValue:unknown){
   const team=normalizeTeam(teamValue);
-  const available=await all("SELECT slot FROM app_users WHERE role='attendant' AND active=1 AND presence='available' AND slot BETWEEN 1 AND 3");
+  const available=await all("SELECT slot,id FROM app_users WHERE role='attendant' AND active=1 AND presence='available' AND slot BETWEEN 1 AND 3");
   const eligible=new Set(available.map(item=>Number(item.slot)-1));
   if(!eligible.size){
-    await run("UPDATE conversations SET status='human',assigned='',updated=? WHERE id=?",Date.now(),id);
+    await run("UPDATE conversations SET status='human',assigned='',assigned_user_id='',claimed_at=0,updated=? WHERE id=?",Date.now(),id);
     return 'a equipe';
   }
   const placeholders=team.map(()=>'?').join(',');
@@ -71,7 +71,7 @@ export async function routeToAttendant(id:string,teamValue:unknown){
   const cursor=Number((await getSetting('attendantRouting'))?.index??-1);
   const index=selectAttendantIndex(team,[...eligible],Object.fromEntries(load),cursor)!;
   const chosen={index,name:team[index]};
-  await run("UPDATE conversations SET status='human',assigned=?,updated=? WHERE id=?",chosen.name,Date.now(),id);
+  await run("UPDATE conversations SET status='human',assigned=?,assigned_user_id=?,claimed_at=?,updated=? WHERE id=?",chosen.name,String(available.find(p=>Number(p.slot)-1===index)?.id||''),Date.now(),Date.now(),id);
   await setting('attendantRouting',{index:chosen.index,at:Date.now()});
   return chosen.name;
 }
@@ -116,6 +116,12 @@ async function catalogCandidates(query:string){
   return rows.filter(row=>matchesCatalogRequest(query,String(row.name))).map(row=>({id:Number(row.id),name:String(row.name)}));
 }
 export async function quote(items:{productId:number,quantity:number}[],profile:CustomerProfile,name:string,conversationId=''){const draft=await prepareQuote(await erp(),items,centerCellPolicy(profile));const id=crypto.randomUUID();await run('INSERT INTO quotes (id,name,profile,conversation_id,data,total,created) VALUES (?,?,?,?,?,?,?)',id,name,profile,conversationId,JSON.stringify(draft),draft.totalCents,Date.now());for(const line of draft.lines)await recordAddedProduct(db(),line.productId).catch(()=>{});return {id,...draft};}
+/** Read-only catalog consultation for the simulated human side; never creates an ERP order. */
+export async function consultCatalog(query:string){
+ const candidates=await catalogCandidates(query),client=await erp();let checkedAt=Date.now();const items:import('../chat-cards').CatalogItem[]=[];
+ for(const candidate of candidates){try{const found=await client.product(candidate.id);if(!found||found.item.id!==candidate.id)throw new Error('PRODUCT_NOT_FOUND');const p=productForQuote(found.item,centerCellPolicy('lojista'));checkedAt=Math.min(checkedAt,found.checkedAt);items.push({productId:p.id,name:p.name,unitCents:p.priceCents,stock:p.stock,status:p.canQuote?'available':p.eligible?'unconfirmed':'unavailable'});}catch{items.push({productId:candidate.id,name:candidate.name,unitCents:null,stock:null,status:'unconfirmed'});}}
+ return {items,total:items.length,checkedAt};
+}
 export async function reviseQuote(id:string,items:{productId:number,quantity:number}[],profile:CustomerProfile,name:string){
   const existing=await one("SELECT id FROM quotes WHERE id=? AND deleted_at=0 AND superseded_by=''",id);
   if(!existing)throw new Error('QUOTE_NOT_FOUND');
@@ -133,7 +139,7 @@ export async function deleteQuote(id:string){
   const result=await run("UPDATE quotes SET deleted_at=? WHERE id=? AND deleted_at=0 AND superseded_by=''",Date.now(),id);
   if(!result.meta.changes)throw new Error('QUOTE_NOT_FOUND');
 }
-export async function addMessage(id:string,role:string,body:string,status='saved',messageId=crypto.randomUUID(),card?:ChatCardData){await db().batch([db().prepare('INSERT OR IGNORE INTO messages (id,conversation_id,role,body,status,card_data,created) VALUES (?,?,?,?,?,?,?)').bind(messageId,id,role,body,status,card?JSON.stringify(card):'',Date.now()),db().prepare('UPDATE conversations SET updated=? WHERE id=?').bind(Date.now(),id)]);return messageId;}
+export async function addMessage(id:string,role:string,body:string,status='saved',messageId=crypto.randomUUID(),card?:ChatCardData,author?:{id:string;name:string}){await db().batch([db().prepare('INSERT OR IGNORE INTO messages (id,conversation_id,role,body,status,card_data,created,author_id,author_name) VALUES (?,?,?,?,?,?,?,?,?)').bind(messageId,id,role,body,status,card?JSON.stringify(card):'',Date.now(),author?.id||'',author?.name||''),db().prepare('UPDATE conversations SET updated=? WHERE id=?').bind(Date.now(),id)]);return messageId;}
 export async function identifyMercadoPhoneCustomer(id:string){
   const c=await one('SELECT * FROM conversations WHERE id=?',id);
   if(!c)return {status:'unavailable' as const};
@@ -197,7 +203,7 @@ export async function chatReply(id:string,options?:{signal?:AbortSignal;target?:
   if(!key)throw new Error('Conecte a OpenAI em Integrações para testar a IA.');
   const history=await all("SELECT id,role,body,card_data,created FROM messages WHERE conversation_id=? AND rowid<=? AND deleted_at=0 AND role IN ('user','assistant','agent') ORDER BY rowid DESC LIMIT 40",id,target);
   const messages=history.reverse() as {id:string;role:string;body:string;created:number}[];
-  const profile=c.profile==='nao_identificado'&&commercialProfileEvidence(messages)!==null?'lojista':c.profile;
+  const profile=c.profile==='nao_identificado'&&(commercialProfileEvidence(messages)!==null||cfg.flowMode==='catalog_handoff'&&cfg.catalogPricing==='lojista')?'lojista':c.profile;
   const memory=readCeciMemory(await getSetting('ceci:memory:'+id));
   const latestCard=await one("SELECT card_data,created FROM messages WHERE conversation_id=? AND deleted_at=0 AND CASE WHEN json_valid(card_data) THEN json_extract(card_data,'$.type') ELSE NULL END='quote' ORDER BY rowid DESC LIMIT 1",id);
   const card=latestCard?parseChatCard(latestCard.card_data):null;
@@ -237,13 +243,13 @@ export async function chatReply(id:string,options?:{signal?:AbortSignal;target?:
     await audit('catalog',{query,items,total:candidates.length,checkedAt});
     return {items,total:candidates.length,checkedAt};
   };
-  const signature=JSON.stringify(['conversational-sale-v4',cfg.model,cfg.name,cfg.greeting,cfg.instructions,cfg.handoff]);
+  const signature=JSON.stringify(['shared-catalog-v1',cfg.flowMode,cfg.catalogPricing,cfg.model,cfg.name,cfg.greeting,cfg.instructions,cfg.handoff]);
   const stored=await getSetting('ceci:progress:'+id);
   const checkpoint=stored?.target===target&&stored?.deletedCount===deletedCount&&stored?.signature===signature&&Date.now()-stored.at<10*60_000?stored.value as AgentCheckpoint:undefined;
   const lastUser=messages.filter(m=>m.role==='user').at(-1);
   const lastAnswer=lastUser?messages.slice(0,messages.indexOf(lastUser)).filter(m=>m.role!=='user').at(-1)?.body||'':'';
   const confirming=!!lastUser&&!!memory.currentQuoteId&&quotePresentedAt>0&&lastUser.created>=quotePresentedAt&&confirmsPurchase(lastUser.body,lastAnswer,memory.cart);
-  const suggested=checkpoint||confirming||profile!=='lojista'?'':initialCatalogQuery(messages);
+  const suggested=checkpoint||confirming||profile!=='lojista'?'':initialCatalogQuery(messages,cfg.flowMode==='catalog_handoff');
   const initialCatalog=suggested?await listCatalog(suggested).then(found=>found.total?{query:suggested,...found}:undefined).catch(()=>undefined):undefined;
   const lookups=checkpoint||initialCatalog||confirming?[]:await Promise.allSettled(initialProductQueries(messages).map(async busca=>{const found=await searchProducts(busca,c!.profile);return {busca,items:found.items.slice(0,12).map(p=>({id:Number(p.id),name:String(p.name)})),count:found.total};}));
   for(const lookup of lookups)if(lookup.status==='fulfilled')await audit('search',{query:lookup.value.busca,items:lookup.value.items,total:lookup.value.count});
@@ -297,7 +303,7 @@ export async function chatReply(id:string,options?:{signal?:AbortSignal;target?:
   const quoteId=result.draft?crypto.randomUUID():'';
   let formatted:{body:string;card?:ChatCardData}={body:[result.text,result.nextStep].filter(Boolean).join('\n\n')};
   if(result.draft)formatted=quoteMessage(quoteId,result.draft,'lojista',result.text,{closing:result.nextStep,contextual:true});
-  else if(result.catalog?.length){const parts=catalogMessages(result.text,result.catalog,result.checkedAt,result.nextStep);return {...parts[0],parts,handoff:false,target,result,quoteId,deletedCount};}
+  else if(result.catalog?.length){const parts=catalogMessages(result.text,result.catalog,result.checkedAt,result.nextStep);return {...parts[0],parts,handoff:!!result.handoff,target,result,quoteId,deletedCount};}
   else if(result.products?.length)formatted=productMessage(result.text,result.products,result.checkedAt,result.nextStep);
   return {...formatted,handoff:!!result.handoff,target,result,quoteId,deletedCount};
 }
@@ -308,7 +314,8 @@ export async function publishCeciReply(id:string,reply:CeciReply){
   if(Number((await latestCeciInbound(id))?.seq)!==reply.target)throw new Error('CECI_SUPERSEDED');
   if(Number((await one('SELECT COUNT(*) AS total FROM messages WHERE conversation_id=? AND deleted_at>0',id))?.total||0)!==reply.deletedCount)throw new Error('CECI_SUPERSEDED');
   const firstId='ceci-'+id+'-'+reply.target;
-  if(await one('SELECT id FROM messages WHERE id=?',firstId)&&!reply.parts?.length)return;
+  const existing=!!await one('SELECT id FROM messages WHERE id=?',firstId);
+  if(existing&&Number((await getSetting('ceci:answered:'+id))?.seq)>=reply.target&&(!reply.result.handoff||await one('SELECT id FROM messages WHERE id=?',firstId+'-handoff')))return;
   const {result}=reply,simulation=c.channel==='test';
   if(result.handoff?.reason==='compra_confirmada'&&!simulation){
     if(!await one("SELECT id FROM quotes WHERE id=? AND conversation_id=? AND deleted_at=0 AND superseded_by=''",result.handoff.quoteId,id))throw new Error('CECI_SUPERSEDED');
@@ -321,7 +328,7 @@ export async function publishCeciReply(id:string,reply:CeciReply){
       if(!simulation)await sendWhatsapp(c,part.body);
       await run('INSERT OR IGNORE INTO messages (id,conversation_id,role,body,status,card_data,created) VALUES (?,?,?,?,?,?,?)',messageId,id,'assistant',part.body,simulation?'saved':'accepted',JSON.stringify(part.card),Date.now());
     }
-  }else if(!simulation)await sendWhatsapp(c,reply.body);
+  }else if(!simulation&&!existing)await sendWhatsapp(c,reply.body);
   // The message and the memory are saved together so another worker cannot answer the same batch.
   result.memory.updatedAt=Date.now();
   const previousQuoteId=result.previousQuoteId;
@@ -340,12 +347,15 @@ export async function publishCeciReply(id:string,reply:CeciReply){
   await db().batch(statements);
   if(result.draft&&!simulation)for(const line of result.draft.lines)await recordAddedProduct(db(),line.productId).catch(()=>{});
   if(result.handoff){
-    const attendant=simulation?'a equipe':await routeToAttendant(id,(await config()).team);
+    const operation=await config();
+    const queued=operation.sharedInbox&&operation.handoffAssignment==='manual';
+    const attendant=simulation||queued?'a equipe':await routeToAttendant(id,operation.team);
+    if(queued&&!simulation)await run("UPDATE conversations SET status='human',assigned='',assigned_user_id='',updated=? WHERE id=?",Date.now(),id);
     if(simulation)await run("UPDATE conversations SET status='human' WHERE id=?",id);
     if(result.handoff.reason==='compra_confirmada')await run("UPDATE messages SET card_data=json_set(card_data,'$.status','approved') WHERE conversation_id=? AND deleted_at=0 AND CASE WHEN json_valid(card_data) THEN json_extract(card_data,'$.id') ELSE NULL END=?",id,result.handoff.quoteId);
-    const label=result.handoff.reason==='compra_confirmada'?'Compra confirmada após cotação':result.handoff.reason;
+    const label=result.handoff.reason==='compra_confirmada'?'Compra confirmada após cotação':result.handoff.reason==='catalogo_listado'?'Produtos listados · aguardando atendente':result.handoff.reason;
     const order=result.memory.cart.map(item=>`${item.quantity} × ${result.memory.products.find(p=>p.id===item.productId)?.name||'Produto'} (cód. ${item.productId})`).join('\n');
-    await addMessage(id,'note','Encaminhamento automático: '+label+'\nResponsável: '+attendant+'\nResumo: '+result.handoff.summary+'\nPedido em contexto: '+(order||'Nenhum item definido')+'\nOrçamento apresentado: '+(previousQuoteId||'Nenhum')+'\nPendência: '+result.memory.pending+'\nPróxima ação: '+result.memory.nextAction);
+    await addMessage(id,'note','Encaminhamento automático: '+label+'\nResponsável: '+attendant+'\nResumo: '+result.handoff.summary+'\nPedido em contexto: '+(order||'Nenhum item definido')+'\nOrçamento apresentado: '+(previousQuoteId||'Nenhum')+'\nPendência: '+result.memory.pending+'\nPróxima ação: '+result.memory.nextAction,'saved',firstId+'-handoff');
   }
 }
 export async function sendWhatsapp(c:Record<string,any>,body:string){if(c.channel==='whatsapp_web'){const {send}=await import('./uazapi');return send(c.phone,body);}if(runtime.WHATSAPP_WEBHOOK_PUBLIC!=='true')throw new Error('WhatsApp pendente de ativação do canal.');if(Date.now()-c.last_inbound>24*60*60*1000)throw new Error('Janela de atendimento encerrada. É necessário um modelo aprovado pela Meta.');const cfg=await config();const token=await secret('WHATSAPP_TOKEN');if(!token||!/^\d+$/.test(cfg.phoneId))throw new Error('Conecte o WhatsApp em Integrações.');const res=await fetch(`https://graph.facebook.com/${cfg.graphVersion}/${cfg.phoneId}/messages`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:c.phone,type:'text',text:{body}}),signal:AbortSignal.timeout(20000)});if(!res.ok)throw new Error('A Meta não confirmou o envio. Confira a conexão antes de tentar novamente.');const result:any=await res.json();return result.messages?.[0]?.id;}

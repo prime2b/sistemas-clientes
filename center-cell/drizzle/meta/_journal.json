@@ -85,6 +85,13 @@
       "when": 1790624645994,
       "tag": "0011_jittery_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793131868998,
+      "tag": "0012_magenta_charles_xavier",
+      "breakpoints": true
     }
   ]
 }

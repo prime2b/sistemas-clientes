@@ -44,13 +44,13 @@ export function commercialProfileEvidence(messages:DialogueMessage[]){
   if(/^(?:loja|assist[eê]ncia|lojista|pra loja|para loja)$/i.test(answer)&&previous&&/\b(?:loja|assist[eê]ncia)\b/i.test(previous.body)&&/\b(?:uso pr[oó]prio|uso pessoal|voc[eê])\b/i.test(previous.body))return last.id||'';
   return null;
 }
-export function initialCatalogQuery(messages:DialogueMessage[]){
+export function initialCatalogQuery(messages:DialogueMessage[],shortFlow=false){
   const user=messages.filter(message=>message.role==='user');
-  const latest=user.at(-1)?.body||'';
+  const latest=shortFlow?'quero '+user.slice(-5).map(m=>m.body).join(' ').replace(/\b(?:\d+|duas?|tr[eê]s|quatro|cinco)\s+(?:unidades?|pe[cç]as?)\b/gi,''):user.at(-1)?.body||'';
   const profileAnswer=commercialProfileEvidence(messages)!==null;
-  const recent=profileAnswer?user.slice(-5).map(message=>message.body).join(' '):latest;
+  const recent=shortFlow?latest:profileAnswer?user.slice(-5).map(message=>message.body).join(' '):latest;
   if(!profileAnswer&&!/(?:\b(?:valor|pre[cç]o|op[cç][oõ]es|quanto custa|quero|procuro|tem|preciso)\b)/i.test(latest))return '';
-  if((profileAnswer?user.slice(-5).map(message=>message.body):[latest]).some(body=>/\b(?:\d+|duas?|tr[eê]s|quatro|cinco)\s+(?:unidades?|pe[cç]as?|telas?|baterias?|frontais?|displays?)\b/i.test(body)))return '';
+  if(!shortFlow&&(profileAnswer?user.slice(-5).map(message=>message.body):[latest]).some(body=>/\b(?:\d+|duas?|tr[eê]s|quatro|cinco)\s+(?:unidades?|pe[cç]as?|telas?|baterias?|frontais?|displays?)\b/i.test(body)))return '';
   const piece=/\b(telas?|frontais?|displays?|baterias?|conectores?|docks?|tampas?)\b/i.exec(recent)?.[1];
   if(!piece)return '';
   const apple=/\biphone\s*(1[0-9]|[6-9]|SE|XR|XS|X)(?:\s*(Pro\s*Max|Pro|Plus|Max|Mini))?\b/i.exec(recent);

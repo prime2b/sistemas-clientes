@@ -7,7 +7,7 @@ import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {fileURLToPath} from 'node:url';
 registerHooks({
- resolve(specifier,context,next){if(specifier.startsWith('.')&&context.parentURL?.startsWith('file:')){const url=new URL(specifier,context.parentURL);if(!/\.[a-z]+$/i.test(url.pathname)){for(const suffix of ['.ts','.tsx'])if(existsSync(fileURLToPath(url)+suffix))return next(url.href+suffix,context);}}return next(specifier,context);},
+ resolve(specifier,context,next){if(specifier.startsWith('@/'))specifier=new URL('../'+specifier.slice(2),import.meta.url).href;if(specifier.startsWith('file:')){for(const suffix of ['.ts','.tsx'])if(existsSync(fileURLToPath(specifier)+suffix))return next(specifier+suffix,context);}if(specifier.startsWith('.')&&context.parentURL?.startsWith('file:')){const url=new URL(specifier,context.parentURL);if(!/\.[a-z]+$/i.test(url.pathname)){for(const suffix of ['.ts','.tsx'])if(existsSync(fileURLToPath(url)+suffix))return next(url.href+suffix,context);}}return next(specifier,context);},
  load(url,context,next){if(url.endsWith('.tsx'))return {format:'module',source:ts.transpileModule(readFileSync(fileURLToPath(url),'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText,shortCircuit:true};return next(url,context);}
 });
 const {default:AutomaticTests}=await import('../app/playground/automatic-tests.tsx');
@@ -32,3 +32,14 @@ assert.match(receipt,/Novo atendimento/);assert.match(receipt,/Resumo do encamin
 const ready=renderToStaticMarkup(createElement(AttendantPreview,{sale:{...received,step:'ready',acceptedAt:2,delivery:'retirada',payment:'pix',confirmationMessageId:'final'},messages:[],busy:false,active:true,onAction:async()=>{}}));assert.match(ready,/Concluir venda simulada/);
 const queue=renderToStaticMarkup(createElement(AttendantPreview,{sale:{...received,step:'queued',assignedSlot:null,team:received.team.map(t=>({...t,available:false}))},messages:[],busy:false,active:true,onAction:async()=>{}}));assert.match(queue,/Aguardando disponibilidade/);assert.ok(!queue.includes('Resposta ao cliente'));
 console.log('PASS attendant interface: three isolated views, assigned panel selected, received summary/quote, manual composer, explicit completion and unavailable queue');
+
+const {default:SharedCentral}=await import('../app/playground/shared-central-preview.tsx');
+const shared=renderToStaticMarkup(createElement(SharedCentral,{sale:{...received,shared:true,step:'claim',assignedSlot:null,acceptedAt:0,quote:null,catalog:[]},messages:[],busy:false,active:true,onAction:async()=>{}}));
+assert.match(shared,/Central de atendimento/);assert.match(shared,/Assumir atendimento/);assert.match(shared,/Não atribuídas/);assert.ok(!shared.includes('Selecionar painel da atendente'));assert.equal((shared.match(/aria-label="Central compartilhada simulada"/g)||[]).length,1);
+console.log('PASS shared central UI: one inbox, operator identity, shared waiting conversation, explicit claim and no individual panels');
+
+const {InboxView}=await import('../app/inbox-view.tsx');
+const noop=()=>{},contact={id:'fixture-conversation',name:'Cliente',phone:'5517999990000',channel:'whatsapp_web',status:'human',assigned:'',profile:'lojista',notes:'',updated:Date.now(),unreadCount:2,canRespond:false};
+const inbox=renderToStaticMarkup(createElement(InboxView,{isAdmin:false,data:{conversations:[contact],whatsappReady:true},cfg:{sharedInbox:true,team:['Ana','Bia','Carla'],enabled:true},conversation:contact,messages:[{id:'inbound',role:'user',body:'Olá',created:Date.now()}],selected:contact.id,filter:'all',search:'',compose:'',role:'agent',notes:'',busy:'',setSelected:noop,setFilter:noop,setSearch:noop,setCompose:noop,setRole:noop,setNotes:noop,onTest:noop,onNavigate:noop,onSend:noop,onRoute:noop,onAutoAssign:noop,onAssign:noop,onUpdate:noop,onArchive:noop,onStatusById:noop,onArchiveById:noop,onDeleteConversation:noop,onDelete:noop,onClaim:noop,onRead:noop}));
+assert.match(inbox,/Não lidas/);assert.match(inbox,/Minhas conversas/);assert.match(inbox,/Finalizadas/);assert.match(inbox,/Assumir/);assert.match(inbox,/aria-label="Resposta"[^>]*disabled/);assert.match(inbox,/cx-whatsapp-layout/);
+console.log('PASS actual inbox render: unread/assigned/closed filters, individual ownership, claim action and locked reply before claim');
