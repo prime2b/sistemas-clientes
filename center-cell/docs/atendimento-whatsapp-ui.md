@@ -9,7 +9,7 @@ As publicações descrevem princípios e referências visuais, não um pacote p�
 
 ## Escopo
 
-Somente Atendimento recebe o tratamento visual. Ao entrar, a navegação usa uma barra compacta de ícones; expandir é opcional e não altera a preferência de menu das demais áreas. Catálogo, orçamentos fora da conversa, integrações, configurações, login e playground mantêm seu tema.
+Somente a lista de conversas, o chat e seus detalhes recebem o tratamento visual. O menu lateral e o cabeçalho da aplicação mantêm exatamente o design e o comportamento padrão das demais telas, incluindo a preferência persistida de recolher ou expandir. Catálogo, orçamentos fora da conversa, integrações, configurações, login e playground mantêm seu tema.
 
 A tela sem seleção apresenta um estado de repouso. O painel operacional anterior continua em “Visão geral da central”, acessível pelo cabeçalho da lista e pelo botão da tela vazia. Filtros avançados de responsável, minhas conversas e finalizadas ficam no botão Filtros. Arquivadas também têm entrada própria quando há conversas arquivadas.
 

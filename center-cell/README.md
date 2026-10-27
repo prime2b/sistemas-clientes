@@ -4,8 +4,8 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 78.
-- Commit de origem: `91ebd05e353fe4bf91fad48151db8ff617f7e2de`.
+- Sites: versão 79.
+- Commit de origem: `fdbdbdc51cb96aef1c5f3f6e3a6811d46fb57882`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
@@ -18,7 +18,7 @@ Admin e atendentes usam o mesmo painel, mantendo seus logins e permissões. Há 
 
 ## Interface de Atendimento
 
-A versão 78 refaz somente a área de Atendimento com referências oficiais do WhatsApp: navegação compacta neutra, lista de conversas, filtros em cápsulas, balões, horários, controles e campo de mensagem em uma linha. Os recursos de orçamento, nota interna e resposta rápida ficam no menu +. A visão geral permanece acessível no cabeçalho e no estado vazio. Indicadores de enviada, entregue e lida dependem dos status registrados; não são presumidos.
+A área de conversas de Atendimento usa referências oficiais do WhatsApp: lista de conversas, filtros em cápsulas, balões, horários, controles e campo de mensagem em uma linha. A versão 79 restaura o menu lateral e o cabeçalho exatamente ao padrão das demais telas, incluindo cores, logotipo, ícones, largura e comportamento de recolher ou expandir. Os recursos de orçamento, nota interna e resposta rápida ficam no menu +. A visão geral permanece acessível no cabeçalho e no estado vazio. Indicadores de enviada, entregue e lida dependem dos status registrados; não são presumidos.
 
 A configuração de menu das demais telas é preservada. Não há alterações no motor da Ceci, integrações, credenciais ou banco. Ver [referências, escopo e limites de verificação](docs/atendimento-whatsapp-ui.md). A versão 77 foi preservada antes deste redesign em [checkpoint/center-cell-v77-before-whatsapp-ui-2026-10-27](https://github.com/prime2b/sistemas-clientes/tree/checkpoint/center-cell-v77-before-whatsapp-ui-2026-10-27).
 
