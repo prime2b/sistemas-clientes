@@ -4,13 +4,15 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 75.
-- Commit de origem: `9a6ab1b2bd1e5fdfab25b4b707e8f3bc40f5f679`.
+- Sites: versão 76.
+- Commit de origem: `8ce90ce7697b45f98b2e9ed31203f57ae9dbc96a`.
 - Aplicação: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Produção: modelo configurado `gpt-5.6-terra`.
 - Novos testes econômicos do playground: `gpt-5.6-luna`. Homologação permite usar o modelo de produção para a Ceci.
 
 ## Atendimento completo no playground
+
+Confirmações como “pode finalizar a compra das 2 unidades” são aceitas quando correspondem à quantidade do orçamento, com verificação no motor e na avaliação.
 
 O cliente simulado não pode encerrar a rotina ao receber o orçamento: a confirmação precisa passar pelo motor Ceci e a venda só é concluída após a confirmação final com a atendente.
 

@@ -56,7 +56,7 @@ export function quoteConfirmationLoops(messages:any[]){
   let card;try{card=typeof message.card_data==='string'?JSON.parse(message.card_data||'null'):message.card_data;}catch{continue;}
   if(card?.type!=='quote'||!Array.isArray(card.items))continue;
   const before=messages.slice(0,index),source=before.filter(m=>m.role==='user').at(-1),lastAssistant=source?before.slice(0,before.indexOf(source)).filter(m=>m.role==='assistant').at(-1):null;
-  if(previous&&source&&messages.indexOf(source)>messages.indexOf(previous.message)&&confirmsPurchase(source.body,lastAssistant?.body||'')&&signature(previous.card)===signature(card))loops.push(message);
+  if(previous&&source&&messages.indexOf(source)>messages.indexOf(previous.message)&&confirmsPurchase(source.body,lastAssistant?.body||'',previous.card.items)&&signature(previous.card)===signature(card))loops.push(message);
   previous={message,card};
  }
  return loops;
@@ -87,7 +87,7 @@ export function evaluateAutomatic(scene:AutoScenario,messages:any[],events:Evide
  add('math','Cálculo do orçamento',badMath.length?'fail':quotes.length?'pass':'na',true,badMath.length?'Total ou subtotal divergente.':quotes.length?'Quantidades × valores unitários e soma dos itens conferidos.':'Nenhum orçamento apresentado.',ids(badMath.length?badMath:quotes));
  const handoff=messages.find(m=>m.role==='note'&&m.body.startsWith('Encaminhamento automático:'));
  const purchase=handoff?.body.includes('Compra confirmada após cotação');
- if(purchase){const before=messages.slice(0,messages.indexOf(handoff));const user=before.filter(m=>m.role==='user').at(-1);const precedingQuote=quotes.filter(q=>messages.indexOf(q.message)<messages.indexOf(user)).at(-1);const lastAssistant=user?before.slice(0,before.indexOf(user)).filter(m=>m.role==='assistant').at(-1):null;const confirmed=!!user&&confirmsPurchase(user.body,lastAssistant?.body||'');
+ if(purchase){const before=messages.slice(0,messages.indexOf(handoff));const user=before.filter(m=>m.role==='user').at(-1);const precedingQuote=quotes.filter(q=>messages.indexOf(q.message)<messages.indexOf(user)).at(-1);const lastAssistant=user?before.slice(0,before.indexOf(user)).filter(m=>m.role==='assistant').at(-1):null;const confirmed=!!user&&confirmsPurchase(user.body,lastAssistant?.body||'',precedingQuote?.card.items);
  add('consent','Compra somente após cotação e confirmação',precedingQuote&&confirmed?'pass':'fail',true,precedingQuote&&confirmed?'Orçamento apresentado antes da confirmação do cliente.':'Não foi encontrada cotação anterior ou confirmação explícita.',[...(user?[user.id]:[]),handoff.id]);}
  const commercial=['quote','edit','natural'].includes(scene.kind);
  if(commercial){add('products','Produtos apresentados em cards',listed.length?'pass':finished?'fail':'review',true,listed.length?`${new Set(listed.flatMap(x=>x.card.items.map((p:any)=>p.productId))).size} SKUs apresentados.`:'Nenhum produto apresentado.',ids(listed));add('quote','Orçamento apresentado',quotes.length?'pass':finished?'fail':'review',true,quotes.length?'Orçamento encontrado na conversa.':'Objetivo ainda não concluído.',ids(quotes));}

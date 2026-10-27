@@ -31,7 +31,7 @@ export function createSimulatedSale(log:Row[],team:SimulatedAttendant[],cursor=-
  const lastAssistant=preceding.findLast(m=>m.role==='assistant');
  const quoteMessage=preceding.findLast(m=>parseChatCard(m.card_data)?.type==='quote');
  const quote=quoteMessage&&parseChatCard(quoteMessage.card_data);
- if(!quoteMessage||!validQuote(quote)||quote?.type!=='quote'||quote.status!=='approved'||!confirmsPurchase(consent.body,lastAssistant?.body||''))return null;
+ if(!quoteMessage||!validQuote(quote)||quote?.type!=='quote'||quote.status!=='approved'||!confirmsPurchase(consent.body,lastAssistant?.body||'',quote.items))return null;
  const loads=Object.fromEntries(team.map(t=>[t.name,t.load]));
  const index=selectAttendantIndex(team.map(t=>t.name),team.flatMap((t,i)=>t.available?[i]:[]),loads,cursor);
  return {revision:0,mode:'automatic',step:index===null?'queued':'delivery',team:structuredClone(team),assignedSlot:index===null?null:team[index].slot,receivedAt:Date.now(),acceptedAt:0,completedAt:0,quote:structuredClone(quote),quoteMessageId:quoteMessage.id,consentMessageId:consent.id,handoffMessageId:handoff.id,summary:handoff.body,delivery:'',payment:'',confirmationMessageId:'',pendingCustomer:'',turns:0,deliveryChoice:cursor%2?'entrega':'retirada',paymentChoice:cursor%2?'cartao':'pix'};
@@ -58,7 +58,7 @@ export function applySaleCustomer(sale:SimulatedSale,message:Row,previousAgent:s
  }
  const invitation=/(?:posso|podemos|confirma|confirmar).{0,60}(?:concluir|fechar|finalizar|combinad)/.test(fold(previousAgent));
  const acknowledgment=/^(?:(?:sim|isso|ok|certo|ta certo|tudo certo|combinado|confirmo)[,.!\s]*)+$/.test(text);
- if(sale.step==='confirmation'&&(confirmsPurchase(String(message.body).replace(/\bassim\b/gi,''),previousAgent)||invitation&&acknowledgment)){
+ if(sale.step==='confirmation'&&(confirmsPurchase(String(message.body).replace(/\bassim\b/gi,''),previousAgent,sale.quote.items)||invitation&&acknowledgment)){
   sale.confirmationMessageId=message.id;sale.step='ready';return true;
  }
  return false;

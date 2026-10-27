@@ -32,4 +32,6 @@ const waiting=createSimulatedSale(log,team.map(t=>({...t,available:false})));ass
 assert.equal(createSimulatedSale(log.map(m=>m.id==='yes'?{...m,body:'Vou pensar.'}:m),team),null);
 const bad=[{...log[0],card_data:JSON.stringify({...quote,totalCents:1})},...log.slice(1)];assert.equal(createSimulatedSale(bad,team),null,'invalid totals cannot start a sale');
 assert.equal(saleCriteria(sale,log).find(c=>c.id==='sale-complete').status,'fail','a ready or closed conversation is not yet a completed sale');
+assert.ok(createSimulatedSale(log.map(m=>m.id==='yes'?{...m,body:'Estou de acordo, pode finalizar a compra das 2 unidades.'}:m),team));
+assert.equal(createSimulatedSale(log.map(m=>m.id==='yes'?{...m,body:'Pode finalizar a compra das 3 unidades.'}:m),team),null);
 console.log('PASS sales: shared routing, all-unavailable queue, exact accepted quote snapshot, delivery/payment, refusal, explicit final consent and separate sale completion');

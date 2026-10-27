@@ -44,7 +44,7 @@ export async function runCeciAgent(args:{config:AssistantConfig;context:Assistan
   const knownIds=()=>new Set([...memory.products.map(p=>p.id),...memory.cart.map(p=>p.productId)]);
   const latestUser=args.messages.filter(m=>m.role==='user').at(-1);
   const lastAssistant=latestUser?args.messages.slice(0,args.messages.indexOf(latestUser)).filter(m=>m.role!=='user').at(-1)?.body||'':'';
-  const acceptedQuote=!!latestUser&&!!memory.currentQuoteId&&!!args.quotePresentedAt&&latestUser.created>=args.quotePresentedAt&&confirmsPurchase(latestUser.body,lastAssistant);
+  const acceptedQuote=!!latestUser&&!!memory.currentQuoteId&&!!args.quotePresentedAt&&latestUser.created>=args.quotePresentedAt&&confirmsPurchase(latestUser.body,lastAssistant,memory.cart);
   const requestedRefresh=/atualiz|recalcul|revalid|refa[çz]|nova\s+(?:cota[çc][aã]o|consulta)|novo\s+or[çc]amento|(?:consult|confer).{0,30}(?:novamente|de novo)|retom|recuper/i.test(latestUser?.body||'');
   const sameOrder=(next:RequestedItem[])=>next.length===memory.cart.length&&next.every(item=>memory.cart.some(old=>old.productId===item.productId&&old.quantity===item.quantity));
   const purchaseContext=()=>({orcamentoVigente:memory.currentQuoteId,mensagemId:latestUser!.id,note:'O cliente já confirmou a compra do orçamento vigente apresentado. Não há alteração de itens. Conclua agora com encaminhar_humano, motivo compra_confirmada, estes IDs e um resumo contextual. Não consulte ou gere outro orçamento e não peça nova confirmação. A equipe concluirá pagamento e entrega.'});
@@ -154,7 +154,7 @@ export async function runCeciAgent(args:{config:AssistantConfig;context:Assistan
           if(!source||reason==='compra_confirmada'&&source.id!==latestUser?.id||acceptedQuote&&reason!=='compra_confirmada')throw new Error('PURCHASE_CONFIRMATION_REQUIRED');
           if(reason==='compra_confirmada'){
             const lastAssistant=[...args.messages].reverse().find(m=>m.role!=='user'&&m.created<=source.created)?.body||'';
-            if(draft||!quoteId||quoteId!==memory.currentQuoteId||source.created<args.quotePresentedAt||!args.quotePresentedAt||!confirmsPurchase(source.body,lastAssistant))throw new Error('PURCHASE_CONFIRMATION_REQUIRED');
+            if(draft||!quoteId||quoteId!==memory.currentQuoteId||source.created<args.quotePresentedAt||!args.quotePresentedAt||!confirmsPurchase(source.body,lastAssistant,memory.cart))throw new Error('PURCHASE_CONFIRMATION_REQUIRED');
           }
           const violation=replyViolation(text,false);
           if(violation){result={error:violation};}

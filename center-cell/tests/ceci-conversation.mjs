@@ -67,6 +67,14 @@ for(const text of ['Estou de acordo, pode finalizar a compra.','Confirmo, desejo
 for(const text of ['Confirmo','Sim','Obrigado','Pode fechar?','Não quero finalizar','Pode finalizar se tiver desconto','Pode finalizar, mas troca a cor','Pode fechar com 3 unidades','Pode fechar a preta','Vou pensar e depois finalizar','Pode finalizar antes de confirmar o frete']){
  assert.equal(confirmsPurchase(text,text==='Confirmo'||text==='Sim'?'Qual quantidade?':invitation),false,text);
 }
+const quotedTwo=[{productId:101,quantity:2}];
+for(const text of ['Estou de acordo, pode finalizar a compra das 2 unidades.','Pode fechar as duas unidades.','Confirmo a compra das duas peças.']){
+ assert.equal(confirmsPurchase(text,invitation,quotedTwo),true,text);
+ outcome=await run([handoff()],{memory:{...memory,cart:quotedTwo},messages:[{id:'q',role:'assistant',body:invitation,created:5},user(text)],quotePresentedAt:5});
+ assert.equal(outcome.result.handoff.reason,'compra_confirmada');assert.equal(outcome.prepared.length,0);assert.deepEqual(outcome.offered,[['encaminhar_humano']]);
+}
+for(const text of ['Pode finalizar a compra das 3 unidades.','Pode finalizar a compra das 2 unidades da preta.','Pode finalizar a compra das 2 unidades, código 999.','Pode finalizar a compra das 2 unidades, mas quero desconto.','Pode finalizar a compra das 2 unidades?','Não pode finalizar a compra das 2 unidades.','Pode fechar com 2 unidades.'])assert.equal(confirmsPurchase(text,invitation,quotedTwo),false,text);
+assert.equal(confirmsPurchase('Pode finalizar a compra das 2 unidades.',invitation),false,'quantity requires the actual quoted order');
 outcome=await run([['consultar_e_orcar',{itens:[{productId:101,quantity:2}]}],finish('Revalidei o orçamento.','Confirma novamente?'),handoff()],{memory,messages:[{id:'q',role:'assistant',body:invitation,created:5},user('Estou de acordo, pode finalizar a compra.')],quotePresentedAt:5});
 assert.equal(outcome.prepared.length,0);assert.equal(outcome.result.draft,undefined);assert.equal(outcome.result.memory.currentQuoteId,'quote-current');assert.equal(outcome.result.handoff.quoteId,'quote-current');
 assert.ok(outcome.consumed[1].some(m=>m.type==='function_call_output'&&JSON.parse(m.output).orcamentoVigente==='quote-current'));

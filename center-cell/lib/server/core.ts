@@ -237,12 +237,12 @@ export async function chatReply(id:string,options?:{signal?:AbortSignal;target?:
     await audit('catalog',{query,items,total:candidates.length,checkedAt});
     return {items,total:candidates.length,checkedAt};
   };
-  const signature=JSON.stringify(['conversational-sale-v3',cfg.model,cfg.name,cfg.greeting,cfg.instructions,cfg.handoff]);
+  const signature=JSON.stringify(['conversational-sale-v4',cfg.model,cfg.name,cfg.greeting,cfg.instructions,cfg.handoff]);
   const stored=await getSetting('ceci:progress:'+id);
   const checkpoint=stored?.target===target&&stored?.deletedCount===deletedCount&&stored?.signature===signature&&Date.now()-stored.at<10*60_000?stored.value as AgentCheckpoint:undefined;
   const lastUser=messages.filter(m=>m.role==='user').at(-1);
   const lastAnswer=lastUser?messages.slice(0,messages.indexOf(lastUser)).filter(m=>m.role!=='user').at(-1)?.body||'':'';
-  const confirming=!!lastUser&&!!memory.currentQuoteId&&quotePresentedAt>0&&lastUser.created>=quotePresentedAt&&confirmsPurchase(lastUser.body,lastAnswer);
+  const confirming=!!lastUser&&!!memory.currentQuoteId&&quotePresentedAt>0&&lastUser.created>=quotePresentedAt&&confirmsPurchase(lastUser.body,lastAnswer,memory.cart);
   const suggested=checkpoint||confirming||profile!=='lojista'?'':initialCatalogQuery(messages);
   const initialCatalog=suggested?await listCatalog(suggested).then(found=>found.total?{query:suggested,...found}:undefined).catch(()=>undefined):undefined;
   const lookups=checkpoint||initialCatalog||confirming?[]:await Promise.allSettled(initialProductQueries(messages).map(async busca=>{const found=await searchProducts(busca,c!.profile);return {busca,items:found.items.slice(0,12).map(p=>({id:Number(p.id),name:String(p.name)})),count:found.total};}));

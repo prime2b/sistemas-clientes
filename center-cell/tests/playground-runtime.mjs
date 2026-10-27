@@ -103,7 +103,7 @@ products.push(...samsungProducts);
 for(const p of samsungProducts)await core.run('INSERT INTO products(id,name,search,category,data,synced) VALUES(?,?,?,?,?,?)',p.id,p.nome,p.nome.toLowerCase(),'Peças',JSON.stringify(p),Date.now());
 const naturalRun=await runner.startAutomatic(owner,{...args(['first-contact']),productBrand:'Samsung',openingVariant:'oi'}),naturalScene=naturalRun.cases[0].scenarioSnapshot;let naturalProduct=naturalScene.productContext;
 assert.equal(naturalProduct.brand,'Samsung');assert.equal(naturalScene.opening,'Oi');
-const normalFetch=globalThis.fetch;let customerStep=0,firstAssistantSeen=false;
+const normalFetch=globalThis.fetch;let customerStep=0,firstAssistantSeen=false,prematureDone=true;
 const naturalFetch=async(input,init)=>{
  const url=new URL(String(input));if(url.hostname!=='api.openai.com')return normalFetch(input,init);
  const p=JSON.parse(init.body);
@@ -111,9 +111,9 @@ const naturalFetch=async(input,init)=>{
  if(p.instructions.startsWith('Você representa')){
   customerStep++;
   assert.ok(p.input.includes(naturalProduct.model),'only the customer simulator knows the reserved objective');
-  const parts=['Preciso de '+naturalProduct.part,naturalProduct.model,'Para minha assistência, sou lojista.','Quero duas unidades do código '+naturalProduct.exampleId+'.','Estou de acordo, pode finalizar a compra.'];
+  const parts=['Preciso de '+naturalProduct.part,naturalProduct.model,'Para minha assistência, sou lojista.','Quero duas unidades do código '+naturalProduct.exampleId+'.','Estou de acordo, pode finalizar a compra das 2 unidades.'];
   assert.ok(parts[customerStep-1],'unexpected extra customer turn');
-  if(customerStep===5)return output({done:true,message:''});
+  if(customerStep===5&&prematureDone)return output({done:true,message:''});
   return output({message:parts[customerStep-1],done:false,expectedProductId:customerStep===4?naturalProduct.exampleId:null,expectedQuantity:customerStep===4?2:null});
  }
  if(p.instructions.startsWith('Você avalia')){const log=JSON.parse(p.input).messages;return output({result:'pass',summary:'A Ceci acolheu, identificou a necessidade e conduziu ao orçamento e encaminhamento.',findings:['naturalidade','clareza','contexto','repeticao','conducao'].map(criterion=>({criterion,result:'pass',detail:'A sequência preserva as informações recebidas, com próximo passo claro.',messageIds:[log.filter(m=>m.role==='assistant').at(-1).id]}))});}
@@ -127,7 +127,7 @@ const naturalFetch=async(input,init)=>{
   if(!calls.some(c=>c.name==='listar_todas_opcoes')){name='listar_todas_opcoes';a={busca:naturalProduct.query};}else{a.texto='Estas são as opções que encontrei.';a.proximoPasso='Qual delas você prefere?';}
  }else if(last.texto.startsWith('Quero duas unidades')){
   if(!calls.some(c=>c.name==='consultar_e_orcar')){name='consultar_e_orcar';a={itens:[{productId:naturalProduct.exampleId,quantity:2}]};}else{a.texto='Separei duas unidades no orçamento.';a.proximoPasso='Quer prosseguir com a compra?';}
- }else if(confirmsPurchase(last.texto,'')){
+ }else if(confirmsPurchase(last.texto,'',[{quantity:2}])){
   assert.deepEqual(p.tools.map(t=>t.name),['encaminhar_humano']);
   // Even an invalid provider tool response cannot regenerate the accepted quote.
   if(!calls.some(c=>c.name==='consultar_e_orcar'))return Response.json({output:[{type:'function_call',name:'consultar_e_orcar',call_id:crypto.randomUUID(),arguments:JSON.stringify({itens:[{productId:naturalProduct.exampleId,quantity:2}]})}],usage:{input_tokens:100,output_tokens:50}});
@@ -138,6 +138,11 @@ const naturalFetch=async(input,init)=>{
 globalThis.fetch=naturalFetch;
 await drain(naturalRun.id);const fullNatural=await runner.automaticDetail(naturalRun.id,owner);assert.equal(fullNatural.state,'completed');assert.equal(fullNatural.cases[0].result,'passed',JSON.stringify(fullNatural.cases[0]));assert.equal(fullNatural.cases[0].earlyFinishRecoveries,1,'premature done at the quote must continue through purchase acceptance');assert.equal(fullNatural.cases[0].sale.step,'completed');assert.ok(fullNatural.cases[0].criteria.filter(c=>c.id.startsWith('sale-')).every(c=>c.status==='pass'));assert.ok(firstAssistantSeen);assert.equal(fullNatural.messages.filter(m=>m.role==='user')[0].body,'Oi');assert.equal(fullNatural.cases[0].criteria.find(c=>c.id==='discovery').status,'pass');assert.equal(fullNatural.cases[0].criteria.find(c=>c.id==='opening').status,'pass');assert.equal(outbound,0);assert.equal(await core.getSetting('ceci:manualPause'),true);
 assert.equal(fullNatural.messages.filter(m=>{try{return JSON.parse(m.card_data||'null')?.type==='quote';}catch{return false;}}).length,1,'acceptance must not create another quote');assert.equal(fullNatural.events.filter(e=>e.kind==='prepare').length,1);assert.equal(fullNatural.cases[0].criteria.find(c=>c.id==='quote-loop').status,'pass');
+prematureDone=false;customerStep=0;
+const quantityRun=await runner.startAutomatic(owner,{...args(['first-contact']),productBrand:'Samsung',openingVariant:'oi'});naturalProduct=quantityRun.cases[0].scenarioSnapshot.productContext;
+await drain(quantityRun.id);const quantityResult=await runner.automaticDetail(quantityRun.id,owner);
+assert.equal(quantityResult.cases[0].result,'passed',JSON.stringify(quantityResult.cases[0]));assert.equal(quantityResult.cases[0].sale.step,'completed');assert.ok(!quantityResult.cases[0].earlyFinishRecoveries);assert.ok(quantityResult.messages.some(m=>m.role==='user'&&m.body==='Estou de acordo, pode finalizar a compra das 2 unidades.'));
+console.log('PASS live quantity regression: confirmation of the same two units routes the approved quote to the attendant and completes the sale');
 globalThis.fetch=normalFetch;
 // A batch records diverse real-catalog requests without changing historical runs.
 const mixed=await runner.startAutomatic(owner,args(['quote','catalog','edit','typos']));assert.ok(new Set(mixed.cases.map(c=>c.scenarioSnapshot.productContext.brand)).size>=3);assert.ok(new Set(mixed.cases.map(c=>c.scenarioSnapshot.productContext.part)).size>=2);await runner.controlAutomatic(mixed.id,owner,'stop');

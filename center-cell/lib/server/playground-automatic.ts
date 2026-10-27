@@ -15,7 +15,7 @@ type Row=Record<string,any>;
 const prefix='playground:auto:',slot='playground:autoSlot';
 export const terminalStates=['completed','stopped','takenOver','blocked'];
 const terminal=(state:string)=>terminalStates.includes(state);
-async function automaticFingerprint(cfg:Row){const bytes=new TextEncoder().encode(JSON.stringify(['conversational-sale-v1',await signature('internal',cfg),cfg.hours,await core.secret('MERCADOPHONE_API_KEY')]));return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function automaticFingerprint(cfg:Row){const bytes=new TextEncoder().encode(JSON.stringify(['conversational-sale-v2',await signature('internal',cfg),cfg.hours,await core.secret('MERCADOPHONE_API_KEY')]));return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');}
 export async function getAutomatic(id:string){return await core.getSetting(prefix+id) as Row|null;}
 export async function automaticControl(id:string){return await core.getSetting('playground:autoControl:'+id)||{state:'running'};}
 async function save(job:Row){job.updated=Date.now();await core.setting(prefix+job.id,job);}
