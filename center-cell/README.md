@@ -1,14 +1,22 @@
 # Center Cell — Central de atendimento
 
-Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, catálogo MercadoPhone, orçamentos, central compartilhada de atendentes e integração WhatsApp via UAZAPI.
+Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, catálogo MercadoPhone, orçamentos, central compartilhada de atendentes e integração WhatsApp via Z-API.
 
 ## Versão desta publicação
 
-- Sites: versão 81.
-- Commit de origem: `8888fb3cee0980eb3b2ef164a1fd90e762c255b5`.
+- Sites: versão 82.
+- Commit de origem: `a9a06b7ce9cd3183c4f5fd4081d1068510f81257`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## WhatsApp pela Z-API
+
+A versão 82 substitui a UAZAPI por Z-API nas mensagens da Ceci e das atendentes, no QR Code, nos avatares e nos eventos de conexão e leitura. A página de integração tem área ampliada de pareamento (até 440–460 px conforme o espaço), credenciais protegidas, instruções e estados separados de conexão e recebimento. O menu da plataforma foi preservado.
+
+São necessários ID, token da instância e **Client-Token**, o token de segurança da conta Z-API. O QR real só é solicitado com as três credenciais. O callback é registrado pelo servidor e protegido por segredo próprio e ID da instância. Receptores antigos retornam 410, evitando dois provedores ativos. O teste isolado exercita a Ceci e respostas humanas, eventos repetidos, contatos privados, recibos e desconexão sem enviar mensagens externas. A validação do aparelho real depende das credenciais completas e do pareamento. Veja [configuração e testes](docs/whatsapp-zapi.md).
+
+Checkpoint anterior: [versão 81 antes da migração](https://github.com/prime2b/sistemas-clientes/tree/checkpoint/center-cell-v81-before-zapi-2026-10-27). O retorno exige uma nova publicação do código anterior, preservando o banco; não restaura conversas a um instante passado.
 
 ## Central compartilhada e atendimento curto
 
@@ -49,7 +57,7 @@ A versão anterior está preservada em [checkpoint/center-cell-v76-before-shared
 - `drizzle/`: schema e migrações D1.
 - `public/`: logotipos, ícones e imagens da marca.
 - `tests/`: verificações automatizadas, com serviços simulados quando indicado.
-- `bridge/`: conector legado opcional de WhatsApp Web. A integração atual usa UAZAPI.
+- `bridge/`: conector legado opcional de WhatsApp Web. O receptor legado está desativado; a integração atual usa Z-API.
 
 ## Desenvolvimento
 
@@ -67,7 +75,7 @@ O projeto usa React, Vinext, Vite e Cloudflare Workers, com banco D1 no binding 
 
 ## Configuração privada
 
-Credenciais de OpenAI, MercadoPhone e UAZAPI e a chave de criptografia são configuradas no ambiente de hospedagem ou no painel autenticado. Banco de produção, contas, sessões e dados de clientes não fazem parte desta cópia. A migração de autenticação foi exportada sem o cadastro e os hashes de acesso inicial do administrador. Configure o acesso administrador pelo procedimento privado do ambiente de implantação; não há senha padrão neste repositório.
+Credenciais de OpenAI, MercadoPhone e Z-API e a chave de criptografia são configuradas no ambiente de hospedagem ou no painel autenticado. Banco de produção, contas, sessões e dados de clientes não fazem parte desta cópia. A migração de autenticação foi exportada sem o cadastro e os hashes de acesso inicial do administrador. Configure o acesso administrador pelo procedimento privado do ambiente de implantação; não há senha padrão neste repositório.
 
 Os testes locais não devem enviar mensagens ao WhatsApp nem criar vendas reais. Conectar o repositório ao GitHub não implanta a aplicação ou transfere os dados D1.
 

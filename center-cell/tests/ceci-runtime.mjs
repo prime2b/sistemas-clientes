@@ -22,7 +22,7 @@ class Statement{
  async run(){return {meta:{changes:Number(sqlite.prepare(this.sql).run(...this.args).changes)}};}
 }
 const DB={prepare:sql=>new Statement(sql),batch:async statements=>{sqlite.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
-globalThis.__ceciTestEnv={DB,OPENAI_API_KEY:'fixture-only',MERCADOPHONE_API_KEY:'fixture-only',UAZAPI_INSTANCE_TOKEN:'fixture-only'};
+globalThis.__ceciTestEnv={DB,OPENAI_API_KEY:'fixture-only',MERCADOPHONE_API_KEY:'fixture-only',ZAPI_INSTANCE_ID:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',ZAPI_INSTANCE_TOKEN:'fixture-only',ZAPI_CLIENT_TOKEN:'fixture-client-token',ZAPI_WEBHOOK_SECRET:'fixture-webhook-secret',ZAPI_WEBHOOK_URL:'https://fixture.test/api/z-api/events'};
 let script=[],sent=[],liveReads=[],modelStatus=0,modelCode="";
 const raw=id=>({id,nome:id>=1000&&id<1100?'TELA IPHONE 12 QUALIDADE '+(id-999):id===2000?'TELA IPHONE 12 PRO':id===2001?'TELA IPHONE 13':id>=200?'BATERIA IPHONE '+(id-200):id===101?'FRONTAL IPHONE 15 PRO MAX SEM ARO':'CONECTOR IPHONE 15 PRO MAX',quantidade:id===1011?0:40,valorVenda:id===1012?null:id===101?199.9:35.5,excluido:0,snExibirCatalogo:1,snPeca:1,produtoDisponibilidadeId:1});
 globalThis.fetch=async (input,init)=>{
@@ -37,7 +37,8 @@ globalThis.fetch=async (input,init)=>{
   if(url.pathname.endsWith('/stores'))return Response.json({stores:[{system_unit_id:4046,name:'Fixture Store'}]});
   if(url.pathname.endsWith('/inventory')){const id=Number(url.searchParams.get('codigoProduto'));liveReads.push(id);return Response.json({items:[raw(id)],total:1,page:1,limit:100});}
  }
- if(url.hostname==='free.uazapi.com'&&url.pathname==='/send/text'){sent.push(JSON.parse(init.body));return Response.json({id:crypto.randomUUID()});}
+ if(url.hostname==='api.z-api.io'&&url.pathname.includes('/update-webhook-'))return Response.json({value:true});
+ if(url.hostname==='api.z-api.io'&&url.pathname.endsWith('/send-text')){sent.push(JSON.parse(init.body));return Response.json({id:crypto.randomUUID()});}
  throw new Error('Unexpected request: '+url.origin+url.pathname);
 };
 const core=await import('../lib/server/core.ts');
@@ -49,8 +50,8 @@ const context={fatos:[],pendencia:'',proximaAcao:''};
 const finish=(text='Aqui estão as opções.',next='')=>['responder_cliente',{texto:text,proximoPasso:next,contexto:context}];
 async function turn(text,build){const source=await core.addMessage(id,'user',text);script=build(source);const reply=await core.chatReply(id);assert.ok(reply);await core.publishCeciReply(id,reply);assert.equal(script.length,0);return reply;}
 await turn('Frontal 15 Pro Max',()=>[['buscar_catalogo',{busca:'frontal 15 Pro Max'}],['consultar_opcoes',{productIds:[101],exibirCards:true}],finish('Encontrei esta opção.','Quantas você precisa?')]);
-assert.equal(sent.length,1);assert.doesNotMatch(sent[0].text,/FIXED_GREETING/);
-assert.match(sent[0].text,/Quantas você precisa\?$/);
+assert.equal(sent.length,1);assert.doesNotMatch(sent[0].message,/FIXED_GREETING/);
+assert.match(sent[0].message,/Quantas você precisa\?$/);
 const first=await turn('Duas telas e um conector',()=>[['buscar_catalogo',{busca:'conector 15 Pro Max'}],['consultar_e_orcar',{itens:[{productId:101,quantity:2},{productId:102,quantity:1}]}],finish('Incluí as telas e o conector.')]);
 assert.equal(first.card.totalCents,43530);assert.equal(first.card.items.length,2);
 assert.equal((await core.one('SELECT total FROM quotes WHERE id=?',first.quoteId)).total,43530);
@@ -87,7 +88,7 @@ const inbound=await import('../lib/server/ceci-inbound.ts');
 await core.setting('config',{...await core.config(),enabled:false});
 await core.setting('ceci:manualPause',true);
 await core.setting('check:ceciReply',{state:'production-sentinel'});
-delete globalThis.__ceciTestEnv.UAZAPI_INSTANCE_TOKEN;
+delete globalThis.__ceciTestEnv.ZAPI_INSTANCE_TOKEN;
 const testId=crypto.randomUUID();
 await core.run("INSERT INTO conversations(id,name,phone,channel,profile,status,updated,customer_status,customer_name) VALUES(?,?,?,'test','lojista','bot',?,'verified',?)",testId,'Validation','',''+Date.now(),'Cliente');
 for(const n of [212,213,215])await core.run('INSERT INTO products(id,name,search,category,data,synced) VALUES(?,?,?,?,?,?)',n,raw(n).nome,raw(n).nome.toLowerCase(),'Peças',JSON.stringify(raw(n)),Date.now());
@@ -172,20 +173,20 @@ assert.equal((await core.getSetting('check:ceciReply')).state,'production-sentin
 assert.equal((await core.config()).enabled,false);
 assert.equal(await core.getSetting('ceci:manualPause'),true);
 assert.equal(sent.length,outgoing);
-modelStatus=0;globalThis.__ceciTestEnv.UAZAPI_INSTANCE_TOKEN='fixture-only';
+modelStatus=0;globalThis.__ceciTestEnv.ZAPI_INSTANCE_TOKEN='fixture-only';
 // Automatic activation respects explicit pauses and all readiness checks.
 const {signature}=await import('../lib/server/integrations.ts');
-globalThis.__ceciTestEnv.UAZAPI_WEBHOOK_URL='https://fixture.test/events';
+const zapi=await import('../lib/server/zapi.ts');await zapi.setup();
 const cfg=await core.config();cfg.enabled=false;
 await core.setting('config',cfg);
-await core.setting('check:whatsappWeb',{connected:true});
+await core.setting('check:whatsappWeb',{provider:'zapi',instanceId:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',connected:true});
 await core.setting('ceci:manualPause',true);
 assert.equal(await inbound.activateCeciForInbound(cfg),false);
 await core.setting('ceci:manualPause',false);
 assert.equal(await inbound.activateCeciForInbound(cfg),false);
 await core.setting('erpCheck',{at:Date.now()});
 await core.setting('sync',{complete:true});
-await core.setting('check:whatsappWebReceived',{at:Date.now()});
+await core.setting('check:whatsappWebReceived',{provider:'zapi',instanceId:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',at:Date.now()});
 for(const service of ['openai','internal'])await core.setting('check:'+service,{ok:true,fingerprint:await signature(service,cfg)});
 assert.equal(await inbound.activateCeciForInbound(cfg),true);
 assert.equal((await core.config()).enabled,true);

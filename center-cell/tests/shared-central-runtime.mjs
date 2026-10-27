@@ -7,7 +7,7 @@ registerHooks({resolve(s,c,next){if(s==='next/headers')return {url:'data:text/ja
 const sql=new DatabaseSync(':memory:');for(const f of readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));
 class Statement{constructor(q,args=[]){this.q=q;this.args=args;}bind(...args){return new Statement(this.q,args);}async all(){return {results:sql.prepare(this.q).all(...this.args)}}async first(){return sql.prepare(this.q).get(...this.args)||null}async run(){return {meta:{changes:Number(sql.prepare(this.q).run(...this.args).changes)}}}}
 const DB={prepare:q=>new Statement(q),batch:async ss=>{sql.exec('BEGIN');try{const out=[];for(const s of ss)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};
-globalThis.__centralFixture={DB,OPENAI_API_KEY:'fixture-only',MERCADOPHONE_API_KEY:'fixture-only',UAZAPI_INSTANCE_TOKEN:'fixture-only'};
+globalThis.__centralFixture={DB,OPENAI_API_KEY:'fixture-only',MERCADOPHONE_API_KEY:'fixture-only',ZAPI_INSTANCE_ID:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',ZAPI_INSTANCE_TOKEN:'fixture-only',ZAPI_CLIENT_TOKEN:'fixture-client-token',ZAPI_WEBHOOK_SECRET:'fixture-webhook-secret',ZAPI_WEBHOOK_URL:'https://fixture.test/api/z-api/events'};
 const core=await import('../lib/server/core.ts'),runner=await import('../lib/server/playground-automatic.ts'),auth=await import('../lib/server/app-auth.ts'),api=await import('../app/api/manage/route.ts');
 await core.setting('config',{...core.defaults,enabled:false,flowMode:'catalog_handoff',sharedInbox:true,catalogPricing:'lojista',handoffAssignment:'manual',instructions:'Use linguagem simples, sem emojis.'});await core.setting('ceci:manualPause',true);
 const products=Array.from({length:12},(_,i)=>({id:1000+i,nome:'TELA IPHONE 12 '+['INCELL','OLED','PRETA','SEM ARO'][i%4]+' OPCAO '+i,quantidade:i===11?0:20,valorVenda:100+i,excluido:0,snExibirCatalogo:1,snPeca:1,produtoDisponibilidadeId:1}));products.push({id:2000,nome:'TELA IPHONE 12 PRO OLED',quantidade:20,valorVenda:180,excluido:0,snExibirCatalogo:1,snPeca:1,produtoDisponibilidadeId:1});
@@ -19,7 +19,7 @@ globalThis.fetch=async(input,init)=>{const url=new URL(String(input));
   if(url.pathname.endsWith('/stores'))return Response.json({stores:[{system_unit_id:4046,name:'Fixture'}]});
   if(url.pathname.endsWith('/inventory')){if(failedInventory)return Response.json({error:'fixture unavailable'},{status:503});const id=Number(url.searchParams.get('codigoProduto'));return Response.json({items:products.filter(p=>p.id===id),total:1,page:1,limit:100});}
  }
- if(url.hostname==='free.uazapi.com'&&url.pathname==='/send/text'){sendAttempts++;if(failSecondPart&&sendAttempts===2)return Response.json({error:'fixture send failure'},{status:503});return Response.json({id:'fixture-sent-'+sendAttempts});}
+ if(url.hostname==='api.z-api.io'&&url.pathname.endsWith('/send-text')){sendAttempts++;if(failSecondPart&&sendAttempts===2)return Response.json({error:'fixture send failure'},{status:503});return Response.json({id:'fixture-sent-'+sendAttempts});}
  if(url.hostname==='api.openai.com'){
   if(forbidModel)throw new Error('CECI MUST NOT RESTART AFTER HANDOFF');
   const p=JSON.parse(init.body);
@@ -97,7 +97,7 @@ console.log('PASS central operations: individual login, shared visibility, admin
 
 // A multi-part list is not handed off if a part fails; a retry does not resend saved parts.
 const multipart=crypto.randomUUID();await core.run("INSERT INTO conversations(id,name,phone,channel,profile,status,updated,customer_status,customer_checked_at) VALUES(?,'Cliente multipart','5517999990000','whatsapp_web','lojista','bot',?,'not_found',?)",multipart,Date.now(),Date.now());await core.addMessage(multipart,'user','Preciso de tela iPhone 12.');
-const reply=await core.chatReply(multipart);assert.ok(reply.parts.length>=2);failSecondPart=true;await assert.rejects(core.publishCeciReply(multipart,reply),/UAZAPI/);assert.equal((await core.one('SELECT status FROM conversations WHERE id=?',multipart)).status,'bot');assert.equal((await core.one("SELECT COUNT(*) AS n FROM messages WHERE conversation_id=? AND role='note' AND body LIKE 'Encaminhamento%'",multipart)).n,0);
+const reply=await core.chatReply(multipart);assert.ok(reply.parts.length>=2);failSecondPart=true;await assert.rejects(core.publishCeciReply(multipart,reply),/Z-API/);assert.equal((await core.one('SELECT status FROM conversations WHERE id=?',multipart)).status,'bot');assert.equal((await core.one("SELECT COUNT(*) AS n FROM messages WHERE conversation_id=? AND role='note' AND body LIKE 'Encaminhamento%'",multipart)).n,0);
 await core.publishCeciReply(multipart,reply);assert.equal((await core.one('SELECT status FROM conversations WHERE id=?',multipart)).status,'human');assert.equal((await core.one('SELECT assigned_user_id FROM conversations WHERE id=?',multipart)).assigned_user_id,'');assert.equal(sendAttempts,reply.parts.length+1);forbidModel=true;assert.equal(await core.chatReply(multipart),undefined);forbidModel=false;
 console.log('PASS multipart handoff: every card is persisted/sent before transfer, failed part retains bot state, saved parts are not resent, queue stays unassigned and Ceci stays stopped');
 if(process.env.CENTRAL_COMPILED==='1'){

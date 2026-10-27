@@ -1,6 +1,6 @@
 export type IntegrationKey='whatsapp'|'mercadophone'|'openai';
 export type ActivationStep={id:string;label:string;done:boolean;detail:string};
-type Data={activation:{steps:ActivationStep[];completed:number;total:number;ready:boolean;checks:Record<string,{ok:boolean;at:number;message:string}|null>};config:{enabled:boolean;model:string};erpCheck?:{at:number}|null;catalog:{count:number;synced:number};sync?:{page:number;received:number;reportedTotal:number;at:number;complete:boolean;error?:string}|null;secrets:Record<string,boolean>;uazapiUrl:string;uazapiWebhookReady:boolean;webReceivedAt?:number};
+type Data={activation:{steps:ActivationStep[];completed:number;total:number;ready:boolean;checks:Record<string,{ok:boolean;at:number;message:string}|null>};config:{enabled:boolean;model:string};erpCheck?:{at:number}|null;catalog:{count:number;synced:number};sync?:{page:number;received:number;reportedTotal:number;at:number;complete:boolean;error?:string}|null;secrets:Record<string,boolean>;zapiInstanceId?:string;zapiWebhookReady?:boolean;webReceivedAt?:number};
 
 export const orderedStepIds=['erp','catalog','openai','whatsapp','receiver','internal'];
 export const stepTarget:Record<string,{integration:IntegrationKey;anchor:string}>={erp:{integration:'mercadophone',anchor:'erp-connection'},catalog:{integration:'mercadophone',anchor:'erp-sync'},openai:{integration:'openai',anchor:'ai-model'},internal:{integration:'openai',anchor:'ai-test'},whatsapp:{integration:'whatsapp',anchor:'wa-pair'},receiver:{integration:'whatsapp',anchor:'wa-receive'}};
@@ -8,7 +8,7 @@ export function integrationView(data:Data){
   const steps=orderedStepIds.map(id=>data.activation.steps.find(item=>item.id===id)).filter((item):item is ActivationStep=>!!item);
   const done=(id:string)=>!!steps.find(item=>item.id===id)?.done;
   const pending=[
-    !done('whatsapp')&&{integration:'whatsapp' as const,anchor:data.secrets.UAZAPI_INSTANCE_TOKEN?'wa-pair':'wa-token',label:'Conectar WhatsApp',text:'Pareie o aparelho para receber mensagens na central.'},
+    !done('whatsapp')&&{integration:'whatsapp' as const,anchor:data.secrets.ZAPI_INSTANCE_TOKEN&&data.secrets.ZAPI_CLIENT_TOKEN?'wa-pair':'wa-token',label:'Conectar WhatsApp',text:'Pareie o aparelho para receber mensagens na central.'},
     !done('openai')&&{integration:'openai' as const,anchor:'ai-model',label:'Validar OpenAI',text:'Configure a chave e valide o acesso ao modelo.'},
     !done('internal')&&{integration:'openai' as const,anchor:'ai-test',label:'Teste interno da IA',text:'Envie uma pergunta à Ceci e confira a resposta.'},
     !done('receiver')&&{integration:'whatsapp' as const,anchor:'wa-receive',label:'Validar mensagem real',text:'Envie uma mensagem real ao número pareado.'},

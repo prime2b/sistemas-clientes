@@ -1,4 +1,5 @@
 import * as core from './core';
+import * as zapi from './zapi';
 import {probeConnection, summarizeReadiness, type Service} from './integration-probes';
 
 export async function signature(service: Service | 'internal', cfg: Record<string,any>) {
@@ -34,15 +35,15 @@ export async function integrationStatus(cfg: Record<string,any>) {
   const subscriptionReady = !signup?.phoneId || signup.phoneId!==cfg.phoneId || signup.subscribed===true;
   const publicReceiver = core.runtime.WHATSAPP_WEBHOOK_PUBLIC === 'true';
   const webMode=cfg.whatsappMode==='web';
-  const webCheck=await core.getSetting('check:whatsappWeb');
-  const webReceived=await core.getSetting('check:whatsappWebReceived');
-  const webConfigured=!!(await core.secret('UAZAPI_INSTANCE_TOKEN')&&core.runtime.UAZAPI_WEBHOOK_URL);
+  const webCheck=await zapi.connection();
+  const webReceived=await zapi.received();
+  const webConfigured=await zapi.credentialsReady()&&await zapi.webhookConfigured();
   return {checks, ...summarizeReadiness([
     {id:'erp',label:'Conexão com o MercadoPhone',done:!!erp && !!await core.secret('MERCADOPHONE_API_KEY'),detail:erp?'Consulta ao ERP validada.':'Teste a conexão com o ERP.',page:'integrations'},
     {id:'catalog',label:'Catálogo sincronizado',done:!!sync?.complete && Number(catalog?.count)>0,detail:sync?.complete?`${catalog?.count || 0} produtos no catálogo.`:'Conclua a sincronização dos produtos.',page:'catalog'},
     {id:'openai',label:'Acesso ao modelo de IA',done:!!checks.openai?.ok,detail:checks.openai?.message || 'Adicione a chave e teste o acesso ao modelo.',page:'integrations'},
     {id:'internal',label:'Resposta em teste interno',done:!!checks.internal?.ok,detail:checks.internal?.message || 'Envie uma mensagem de teste e confira a resposta da IA.',page:'integrations'},
-    {id:'whatsapp',label:webMode?'Sessão UAZAPI':'Número e credenciais da Meta',done:webMode?webConfigured&&!!webCheck?.connected:credentials && subscriptionReady && !!checks.whatsapp?.ok,detail:webMode?webCheck?.connected?'Aparelho conectado.':webConfigured?'Abra o QR e vincule o número.':'Configure a instância UAZAPI e o recebimento de eventos.':!subscriptionReady?'Inscrição nos eventos pendente. Configure o webhook na Meta e refaça a conexão.':checks.whatsapp?.message || 'Configure as três credenciais e teste o número.',page:'integrations'},
-    {id:'receiver',label:'Recebimento externo de mensagens',done:webMode?!!webReceived:publicReceiver,detail:webMode?webReceived?'Mensagem real recebida pela UAZAPI.':'Envie uma mensagem de teste para validar a entrega à central.':publicReceiver?'Recebimento marcado como validado na configuração de implantação.':'Pendente de implantação e validação do recebimento externo. O painel continua privado.',page:'integrations'}
+    {id:'whatsapp',label:webMode?'Sessão Z-API':'Número e credenciais da Meta',done:webMode?webConfigured&&!!webCheck?.connected:credentials && subscriptionReady && !!checks.whatsapp?.ok,detail:webMode?webCheck?.connected?'Aparelho conectado.':webConfigured?'Abra o QR e vincule o número.':'Configure a instância Z-API e o recebimento de eventos.':!subscriptionReady?'Inscrição nos eventos pendente. Configure o webhook na Meta e refaça a conexão.':checks.whatsapp?.message || 'Configure as três credenciais e teste o número.',page:'integrations'},
+    {id:'receiver',label:'Recebimento externo de mensagens',done:webMode?!!webReceived:publicReceiver,detail:webMode?webReceived?'Mensagem real recebida pela Z-API.':'Envie uma mensagem de teste para validar a entrega à central.':publicReceiver?'Recebimento marcado como validado na configuração de implantação.':'Pendente de implantação e validação do recebimento externo. O painel continua privado.',page:'integrations'}
   ])};
 }

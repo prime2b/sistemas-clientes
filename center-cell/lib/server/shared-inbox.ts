@@ -3,6 +3,7 @@ import type {AppUser} from './app-auth';
 import {z} from 'zod';
 import {quoteMessage} from '../chat-cards';
 import {prepareQuote,centerCellPolicy} from '../erp/quote';
+import * as zapi from './zapi';
 type Row=Record<string,any>;
 const json=(v:unknown,status=200)=>Response.json(v,{status,headers:{'Cache-Control':'no-store'}});
 const uuid=z.string().uuid(),profile=z.enum(['lojista','consumidor_final','nao_identificado']);
@@ -36,7 +37,7 @@ export async function sharedGet(request:Request,user:AppUser){
  }
  if([...u.searchParams.keys()].length)return json({error:'Área restrita à administração.'},403);
  const conversations=await listSharedConversations(user),team=await core.all("SELECT id,display_name AS name,avatar,slot,presence FROM app_users WHERE active=1 AND role='attendant' ORDER BY slot");
- return json({config:{name:cfg.name,team:cfg.team,enabled:cfg.enabled,sharedInbox:true,flowMode:cfg.flowMode,whatsappMode:cfg.whatsappMode},viewer:{id:user.id,name:user.displayName},conversations,quotes:[],catalog:{count:0},categories:[],navigation:{teamAvailable:team,conversationsWaiting:conversations.filter(c=>c.status==='human'&&!c.archived_at).length},whatsappReady:!!(await core.getSetting('check:whatsappWeb'))?.connected});
+ return json({config:{name:cfg.name,team:cfg.team,enabled:cfg.enabled,sharedInbox:true,flowMode:cfg.flowMode,whatsappMode:cfg.whatsappMode},viewer:{id:user.id,name:user.displayName},conversations,quotes:[],catalog:{count:0},categories:[],navigation:{teamAvailable:team,conversationsWaiting:conversations.filter(c=>c.status==='human'&&!c.archived_at).length},whatsappReady:!!(await zapi.credentialsReady()&&(await zapi.connection())?.connected)});
 }
 export async function sharedPost(request:Request,user:AppUser,raw:Row):Promise<Response|null>{
  if(!sharedActions.has(raw.action))return null;
@@ -102,13 +103,13 @@ export async function sharedPost(request:Request,user:AppUser,raw:Row):Promise<R
    if(await core.one("SELECT id FROM messages WHERE conversation_id=? AND json_valid(card_data) AND json_extract(card_data,'$.id')=?",conversationId,quoteId))return json({error:'Este orçamento já foi enviado.'},409);
    const original=JSON.parse(saved.data),fresh=await prepareQuote(await core.erp(),original.lines.map((p:Row)=>({productId:p.productId,quantity:p.quantity})),centerCellPolicy(c.profile));
    if(fresh.totalCents!==original.totalCents||fresh.lines.some((p,i)=>p.unitCents!==original.lines[i]?.unitCents))return json({error:'Os valores mudaram. Gere o orçamento novamente antes de enviar.'},409);
-   const formatted=quoteMessage(quoteId,fresh,c.profile);if(['whatsapp','whatsapp_web'].includes(c.channel))await core.sendWhatsapp(c,formatted.body);
-   await core.addMessage(conversationId,'agent',formatted.body,'accepted',undefined,formatted.card,{id:user.id,name:user.displayName});return json({ok:true});
+   const formatted=quoteMessage(quoteId,fresh,c.profile);const providerMessageId=['whatsapp','whatsapp_web'].includes(c.channel)?await core.sendWhatsapp(c,formatted.body):undefined;
+   await core.addMessage(conversationId,'agent',formatted.body,'accepted',undefined,formatted.card,{id:user.id,name:user.displayName},providerMessageId);return json({ok:true});
   }
   if(raw.action==='message'){
    const role=z.enum(['agent','note']).parse(raw.role),body=z.string().trim().min(1).max(4000).parse(raw.body);
-   if(role==='agent'&&['whatsapp','whatsapp_web'].includes(c.channel))await core.sendWhatsapp(c,body);
-   await core.addMessage(conversationId,role,body,role==='agent'?'accepted':'saved',undefined,undefined,{id:user.id,name:user.displayName});return json({ok:true});
+   const providerMessageId=role==='agent'&&['whatsapp','whatsapp_web'].includes(c.channel)?await core.sendWhatsapp(c,body):undefined;
+   await core.addMessage(conversationId,role,body,role==='agent'?'accepted':'saved',undefined,undefined,{id:user.id,name:user.displayName},providerMessageId);return json({ok:true});
   }
   return json({error:'Ação indisponível.'},400);
  }finally{await core.run("DELETE FROM settings WHERE key=? AND json_extract(value,'$.token')=?",lease,token);}

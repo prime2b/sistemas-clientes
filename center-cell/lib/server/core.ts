@@ -139,7 +139,7 @@ export async function deleteQuote(id:string){
   const result=await run("UPDATE quotes SET deleted_at=? WHERE id=? AND deleted_at=0 AND superseded_by=''",Date.now(),id);
   if(!result.meta.changes)throw new Error('QUOTE_NOT_FOUND');
 }
-export async function addMessage(id:string,role:string,body:string,status='saved',messageId=crypto.randomUUID(),card?:ChatCardData,author?:{id:string;name:string}){await db().batch([db().prepare('INSERT OR IGNORE INTO messages (id,conversation_id,role,body,status,card_data,created,author_id,author_name) VALUES (?,?,?,?,?,?,?,?,?)').bind(messageId,id,role,body,status,card?JSON.stringify(card):'',Date.now(),author?.id||'',author?.name||''),db().prepare('UPDATE conversations SET updated=? WHERE id=?').bind(Date.now(),id)]);return messageId;}
+export async function addMessage(id:string,role:string,body:string,status='saved',messageId=crypto.randomUUID(),card?:ChatCardData,author?:{id:string;name:string},providerMessageId?:string){await db().batch([db().prepare('INSERT OR IGNORE INTO messages (id,conversation_id,role,body,status,card_data,created,author_id,author_name) VALUES (?,?,?,?,?,?,?,?,?)').bind(messageId,id,role,body,status,card?JSON.stringify(card):'',Date.now(),author?.id||'',author?.name||''),db().prepare('UPDATE conversations SET updated=? WHERE id=?').bind(Date.now(),id)]);if(providerMessageId){const {linkMessage}=await import('./zapi');await linkMessage(providerMessageId,messageId);}return messageId;}
 export async function identifyMercadoPhoneCustomer(id:string){
   const c=await one('SELECT * FROM conversations WHERE id=?',id);
   if(!c)return {status:'unavailable' as const};
@@ -320,15 +320,16 @@ export async function publishCeciReply(id:string,reply:CeciReply){
   if(result.handoff?.reason==='compra_confirmada'&&!simulation){
     if(!await one("SELECT id FROM quotes WHERE id=? AND conversation_id=? AND deleted_at=0 AND superseded_by=''",result.handoff.quoteId,id))throw new Error('CECI_SUPERSEDED');
   }
+  let providerMessageId:string|undefined;
   if(reply.parts?.length){
     for(const [index,part] of reply.parts.entries()){
       const messageId=index===0?firstId:firstId+'-part-'+(index+1);
       if(await one('SELECT id FROM messages WHERE id=?',messageId))continue;
       if(Number((await latestCeciInbound(id))?.seq)!==reply.target)throw new Error('CECI_SUPERSEDED');
-      if(!simulation)await sendWhatsapp(c,part.body);
-      await run('INSERT OR IGNORE INTO messages (id,conversation_id,role,body,status,card_data,created) VALUES (?,?,?,?,?,?,?)',messageId,id,'assistant',part.body,simulation?'saved':'accepted',JSON.stringify(part.card),Date.now());
+      const providerMessageId=!simulation?await sendWhatsapp(c,part.body):undefined;
+      await run('INSERT OR IGNORE INTO messages (id,conversation_id,role,body,status,card_data,created) VALUES (?,?,?,?,?,?,?)',messageId,id,'assistant',part.body,simulation?'saved':'accepted',JSON.stringify(part.card),Date.now());if(providerMessageId&&c.channel==='whatsapp_web'){const {linkMessage}=await import('./zapi');await linkMessage(providerMessageId,messageId);}
     }
-  }else if(!simulation&&!existing)await sendWhatsapp(c,reply.body);
+  }else if(!simulation&&!existing)providerMessageId=await sendWhatsapp(c,reply.body);
   // The message and the memory are saved together so another worker cannot answer the same batch.
   result.memory.updatedAt=Date.now();
   const previousQuoteId=result.previousQuoteId;
@@ -344,7 +345,7 @@ export async function publishCeciReply(id:string,reply:CeciReply){
     statements.push(db().prepare('INSERT INTO quotes (id,name,profile,conversation_id,data,total,created) VALUES (?,?,?,?,?,?,?)').bind(reply.quoteId,c.name,result.profile,id,JSON.stringify(result.draft),result.draft.totalCents,Date.now()));
     if(previousQuoteId)statements.push(db().prepare("UPDATE quotes SET superseded_by=? WHERE id=? AND conversation_id=? AND deleted_at=0 AND superseded_by='' ").bind(reply.quoteId,previousQuoteId,id));
   }
-  await db().batch(statements);
+  await db().batch(statements);if(providerMessageId&&c.channel==='whatsapp_web'){const {linkMessage}=await import('./zapi');await linkMessage(providerMessageId,firstId);}
   if(result.draft&&!simulation)for(const line of result.draft.lines)await recordAddedProduct(db(),line.productId).catch(()=>{});
   if(result.handoff){
     const operation=await config();
@@ -358,4 +359,4 @@ export async function publishCeciReply(id:string,reply:CeciReply){
     await addMessage(id,'note','Encaminhamento automático: '+label+'\nResponsável: '+attendant+'\nResumo: '+result.handoff.summary+'\nPedido em contexto: '+(order||'Nenhum item definido')+'\nOrçamento apresentado: '+(previousQuoteId||'Nenhum')+'\nPendência: '+result.memory.pending+'\nPróxima ação: '+result.memory.nextAction,'saved',firstId+'-handoff');
   }
 }
-export async function sendWhatsapp(c:Record<string,any>,body:string){if(c.channel==='whatsapp_web'){const {send}=await import('./uazapi');return send(c.phone,body);}if(runtime.WHATSAPP_WEBHOOK_PUBLIC!=='true')throw new Error('WhatsApp pendente de ativação do canal.');if(Date.now()-c.last_inbound>24*60*60*1000)throw new Error('Janela de atendimento encerrada. É necessário um modelo aprovado pela Meta.');const cfg=await config();const token=await secret('WHATSAPP_TOKEN');if(!token||!/^\d+$/.test(cfg.phoneId))throw new Error('Conecte o WhatsApp em Integrações.');const res=await fetch(`https://graph.facebook.com/${cfg.graphVersion}/${cfg.phoneId}/messages`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:c.phone,type:'text',text:{body}}),signal:AbortSignal.timeout(20000)});if(!res.ok)throw new Error('A Meta não confirmou o envio. Confira a conexão antes de tentar novamente.');const result:any=await res.json();return result.messages?.[0]?.id;}
+export async function sendWhatsapp(c:Record<string,any>,body:string){if(c.channel==='whatsapp_web'){const {send}=await import('./zapi');return send(c.phone,body);}if(runtime.WHATSAPP_WEBHOOK_PUBLIC!=='true')throw new Error('WhatsApp pendente de ativação do canal.');if(Date.now()-c.last_inbound>24*60*60*1000)throw new Error('Janela de atendimento encerrada. É necessário um modelo aprovado pela Meta.');const cfg=await config();const token=await secret('WHATSAPP_TOKEN');if(!token||!/^\d+$/.test(cfg.phoneId))throw new Error('Conecte o WhatsApp em Integrações.');const res=await fetch(`https://graph.facebook.com/${cfg.graphVersion}/${cfg.phoneId}/messages`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:c.phone,type:'text',text:{body}}),signal:AbortSignal.timeout(20000)});if(!res.ok)throw new Error('A Meta não confirmou o envio. Confira a conexão antes de tentar novamente.');const result:any=await res.json();return result.messages?.[0]?.id;}

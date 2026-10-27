@@ -12,7 +12,7 @@ import {beginCatalogSync,syncCatalogPage} from '../../../lib/erp/catalog-sync';
 import {autoSyncSettings,saveAutoSyncSettings} from '../../../lib/erp/auto-sync';
 import {isOwner} from '../../../lib/server/roles';
 import {bridgeUrl} from '../../../lib/server/whatsapp-web-protocol';
-import {serverUrl,baseUrl} from '../../../lib/server/uazapi';
+import * as zapi from '../../../lib/server/zapi';
 import {catalogMeta,queryCatalog,catalogPrices,enrichCatalogBatch,recordCatalogActivity,recordAddedProduct} from '../../../lib/server/catalog';
 import {quoteMessage} from '../../../lib/chat-cards';
 import {prepareQuote,centerCellPolicy} from '../../../lib/erp/quote';
@@ -23,9 +23,9 @@ const quoteItems=z.array(z.object({productId:z.number().int().positive(),quantit
 const configSchema=z.object({flowMode:z.enum(['catalog_handoff','quote']).default('catalog_handoff'),sharedInbox:z.boolean().default(true),handoffAssignment:z.enum(['manual','automatic']).default('manual'),catalogPricing:z.enum(['lojista','identified']).default('lojista'),name:z.string().min(1).max(80),greeting:z.string().min(1).max(800),instructions:z.string().max(6000),handoff:z.string().min(1).max(800),enabled:z.boolean(),model:z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/),whatsappMode:z.enum(['web','cloud']).default('web'),phoneId:z.string().regex(/^\d{0,40}$/),graphVersion:z.string().regex(/^v\d+\.\d+$/),team:z.array(z.string().trim().min(1).max(60)).length(3).refine(items=>new Set(items.map(item=>item.toLocaleLowerCase('pt-BR'))).size===3),hours:z.string().max(300)});
 const actions=z.discriminatedUnion('action',[
   z.object({action:z.literal('config'),config:configSchema,automationIntent:z.boolean().optional()}),
-  z.object({action:z.literal('secret'),key:z.enum(['OPENAI_API_KEY','MERCADOPHONE_API_KEY','WHATSAPP_TOKEN','META_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_WEB_BRIDGE_TOKEN','UAZAPI_ADMIN_TOKEN','UAZAPI_INSTANCE_TOKEN']),value:z.string().min(8).max(4000)}),
+  z.object({action:z.literal('secret'),key:z.enum(['OPENAI_API_KEY','MERCADOPHONE_API_KEY','WHATSAPP_TOKEN','META_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_WEB_BRIDGE_TOKEN','ZAPI_INSTANCE_TOKEN','ZAPI_CLIENT_TOKEN']),value:z.string().min(8).max(4000)}),
   z.object({action:z.literal('webBridgeConfig'),url:z.string().max(300)}),
-  z.object({action:z.literal('uazapiConfig'),url:z.string().max(300)}),
+  z.object({action:z.literal('zapiConfig'),instanceId:z.string().regex(/^[A-Fa-f0-9]{32}$/)}),
   z.object({action:z.literal('beginSync'),restart:z.boolean().optional()}),
   z.object({action:z.literal('sync'),runId:z.string().uuid(),page:z.number().int().min(1).max(10000)}),
   z.object({action:z.literal('testErp')}),
@@ -89,8 +89,8 @@ export async function GET(request:Request){
       quotesOpen:Number((await core.one("SELECT COUNT(*) AS count FROM messages m JOIN conversations c ON c.id=m.conversation_id WHERE c.channel!='test' AND m.deleted_at=0 AND m.created>? AND CASE WHEN json_valid(m.card_data) THEN json_extract(m.card_data,'$.type') ELSE NULL END='quote' AND CASE WHEN json_valid(m.card_data) THEN json_extract(m.card_data,'$.status') ELSE NULL END='awaiting'",Date.now()-15*60_000))?.count||0),
       teamAvailable:await core.all("SELECT id,display_name AS name,avatar,slot FROM app_users WHERE role='attendant' AND active=1 AND presence='available' ORDER BY slot")
     };
-    const secrets=Object.fromEntries(await Promise.all(['MERCADOPHONE_API_KEY','OPENAI_API_KEY','WHATSAPP_TOKEN','META_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_WEB_BRIDGE_TOKEN','UAZAPI_ADMIN_TOKEN','UAZAPI_INSTANCE_TOKEN'].map(async key=>[key,!!await core.secret(key)])));
-    return json({config:cfg,secrets,navigation,webBridge:await core.getSetting('whatsappWebBridge'),uazapiUrl:await baseUrl(),uazapiWebhookReady:!!core.runtime.UAZAPI_WEBHOOK_URL,activation:await integrationStatus(cfg),ceciPaused:!!await core.getSetting('ceci:manualPause'),ceciReply:await core.getSetting('check:ceciReply'),autoSync:await autoSyncSettings(core.db()),webReceivedAt:(await core.getSetting('check:whatsappWebReceived'))?.at||0,whatsappReady:cfg.whatsappMode==='web'?!!(await core.secret('UAZAPI_INSTANCE_TOKEN')&&core.runtime.UAZAPI_WEBHOOK_URL&&(await core.getSetting('check:whatsappWeb'))?.connected&&(await core.getSetting('check:whatsappWebReceived'))):core.runtime.WHATSAPP_WEBHOOK_PUBLIC==='true',conversations:await listSharedConversations(user),quotes:await core.all("SELECT q.* FROM quotes q LEFT JOIN conversations c ON c.id=q.conversation_id WHERE q.deleted_at=0 AND q.superseded_by='' AND (q.conversation_id='' OR (c.id IS NOT NULL AND c.channel!='test')) ORDER BY q.created DESC LIMIT 100"),catalog:await core.one('SELECT COUNT(*) AS count,MAX(synced) AS synced FROM products'),sync:await core.getSetting('sync'),erpCheck:await core.getSetting('erpCheck'),categories:await core.all('SELECT DISTINCT category FROM products ORDER BY category')});
+    const secrets=Object.fromEntries(await Promise.all(['MERCADOPHONE_API_KEY','OPENAI_API_KEY','WHATSAPP_TOKEN','META_APP_SECRET','WHATSAPP_VERIFY_TOKEN','WHATSAPP_WEB_BRIDGE_TOKEN','ZAPI_INSTANCE_TOKEN','ZAPI_CLIENT_TOKEN'].map(async key=>[key,!!await core.secret(key)])));
+    return json({config:cfg,secrets,navigation,webBridge:await core.getSetting('whatsappWebBridge'),zapiInstanceId:await zapi.instanceId(),zapiWebhookReady:await zapi.webhookConfigured(),activation:await integrationStatus(cfg),ceciPaused:!!await core.getSetting('ceci:manualPause'),ceciReply:await core.getSetting('check:ceciReply'),autoSync:await autoSyncSettings(core.db()),webReceivedAt:(await zapi.received())?.at||0,whatsappReady:cfg.whatsappMode==='web'?!!(await zapi.credentialsReady()&&(await zapi.connection())?.connected):core.runtime.WHATSAPP_WEBHOOK_PUBLIC==='true',conversations:await listSharedConversations(user),quotes:await core.all("SELECT q.* FROM quotes q LEFT JOIN conversations c ON c.id=q.conversation_id WHERE q.deleted_at=0 AND q.superseded_by='' AND (q.conversation_id='' OR (c.id IS NOT NULL AND c.channel!='test')) ORDER BY q.created DESC LIMIT 100"),catalog:await core.one('SELECT COUNT(*) AS count,MAX(synced) AS synced FROM products'),sync:await core.getSetting('sync'),erpCheck:await core.getSetting('erpCheck'),categories:await core.all('SELECT DISTINCT category FROM products ORDER BY category')});
   }catch{return json({error:'Não foi possível carregar os dados. Tente novamente.'},503);}
 }
 
@@ -121,14 +121,14 @@ export async function POST(request:Request){
       case 'secret':
         await core.saveSecret(a.key,a.value);
         if(a.key==='MERCADOPHONE_API_KEY')await core.setting('erpCheck',null);
-        if(a.key==='WHATSAPP_WEB_BRIDGE_TOKEN'||a.key==='UAZAPI_ADMIN_TOKEN'||a.key==='UAZAPI_INSTANCE_TOKEN'){
+        if(a.key==='WHATSAPP_WEB_BRIDGE_TOKEN'||a.key==='ZAPI_INSTANCE_TOKEN'||a.key==='ZAPI_CLIENT_TOKEN'){
           await core.setting('check:whatsappWeb',{connected:false,at:Date.now()});
           await core.setting('check:whatsappWebReceived',null);
         }
         await core.setting('config',{...await core.config(),enabled:false}); return json({ok:true});
-      case 'uazapiConfig':
-        await core.setting('uazapiUrl',serverUrl(a.url));
-        await core.saveSecret('UAZAPI_INSTANCE_TOKEN','');
+      case 'zapiConfig':
+        await core.saveSecret('ZAPI_INSTANCE_ID',a.instanceId.toUpperCase());
+        await core.setting('zapi:webhooks',null);
         await core.setting('config',{...await core.config(),whatsappMode:'web',enabled:false});
         await core.setting('check:whatsappWeb',{connected:false,at:Date.now()});
         await core.setting('check:whatsappWebReceived',null);

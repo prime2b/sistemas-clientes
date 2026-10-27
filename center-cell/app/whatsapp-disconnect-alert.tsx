@@ -3,11 +3,12 @@ import {useCallback,useEffect,useState} from 'react';
 import {AlertTriangle,RefreshCw,Plug, X} from 'lucide-react';
 import {WhatsAppIcon} from './whatsapp-icon';
 
-type Health={state:string;qr?:string;disconnectAlert?:{id:string;at:number;reason?:string}|null;error?:string};
+type Health={state:string;qr?:string;expiresAt?:number;disconnectAlert?:{id:string;at:number;reason?:string}|null;error?:string};
 export default function WhatsAppDisconnectAlert({onIntegrations}:{onIntegrations:()=>void}){
   const [alert,setAlert]=useState<Health['disconnectAlert']>(null);
   const [state,setState]=useState('');
   const [qr,setQr]=useState('');
+  const [expiresAt,setExpiresAt]=useState(0);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const check=useCallback(async()=>{
@@ -22,6 +23,7 @@ export default function WhatsAppDisconnectAlert({onIntegrations}:{onIntegrations
     }catch{/* Sem diagnóstico confiável durante uma falha de rede. */}
   },[]);
   useEffect(()=>{void check();const timer=setInterval(()=>void check(),15000);return()=>clearInterval(timer);},[check]);
+  useEffect(()=>{if(!qr||!expiresAt)return;const timer=setTimeout(()=>{setQr('');setError('O QR Code expirou. Clique em Reconectar agora para gerar outro.');},Math.max(0,expiresAt-Date.now()));return()=>clearTimeout(timer);},[qr,expiresAt]);
   const dismiss=()=>{if(alert?.id)sessionStorage.setItem('cc-dismissed-disconnect',alert.id);setAlert(null);setError('');};
   const reconnect=async()=>{
     setBusy(true);setError('');
@@ -29,7 +31,8 @@ export default function WhatsAppDisconnectAlert({onIntegrations}:{onIntegrations
       const response=await fetch('/api/whatsapp-web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'connect'})});
       const result=await response.json() as Health;
       if(!response.ok)throw new Error(result.error||'Não foi possível iniciar a conexão.');
-      setState(result.state);if(result.qr)setQr(result.qr);
+      setState(result.state);if(result.qr){setQr(result.qr);setExpiresAt(result.expiresAt||0);}
+      if(result.state==='challenge')setError(result.error||'Conclua a verificação adicional pelo painel da Z-API.');
       if(result.state==='connected'){setAlert(null);setQr('');}else await check();
     }catch(cause){setError(cause instanceof Error?cause.message:'Não foi possível reconectar.');}
     finally{setBusy(false);}

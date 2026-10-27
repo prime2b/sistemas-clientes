@@ -1,6 +1,7 @@
 import * as core from './core';
 import {drainCeci} from './ceci-queue';
 import {integrationStatus} from './integrations';
+import * as zapi from './zapi';
 
 const backgroundBudgetMs=26_000;
 const foregroundBudgetMs=60_000;
@@ -10,11 +11,12 @@ const foregroundBudgetMs=60_000;
 // An explicit pause in the chatbot panel always wins.
 export async function activateCeciForInbound(cfg:Record<string,any>){
   if(await core.getSetting('ceci:manualPause'))return false;
+  if(cfg.whatsappMode==='web'&&(!await zapi.credentialsReady()||!(await zapi.connection())?.connected))return false;
   if(cfg.enabled)return true;
   const [openai,instance,connection]=await Promise.all([
-    core.secret('OPENAI_API_KEY'),core.secret('UAZAPI_INSTANCE_TOKEN'),core.getSetting('check:whatsappWeb')
+    core.secret('OPENAI_API_KEY'),zapi.credentialsReady(),zapi.connection()
   ]);
-  if(!openai||!instance||!core.runtime.UAZAPI_WEBHOOK_URL||!connection?.connected)return false;
+  if(!openai||!instance||!await zapi.webhookConfigured()||!connection?.connected)return false;
   if(!(await integrationStatus(cfg)).ready)return false;
   await core.setting('config',{...cfg,enabled:true});
   cfg.enabled=true;

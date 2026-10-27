@@ -24,7 +24,7 @@ class Statement{
  async run(){return {meta:{changes:Number(sqlite.prepare(this.sql).run(...this.args).changes)}};}
 }
 const DB={prepare:sql=>new Statement(sql),batch:async statements=>{sqlite.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
-globalThis.__ceciTestEnv={DB,OPENAI_API_KEY:'fixture-only',MERCADOPHONE_API_KEY:'fixture-only',UAZAPI_INSTANCE_TOKEN:'fixture-only'};
+globalThis.__ceciTestEnv={DB,OPENAI_API_KEY:'fixture-only',MERCADOPHONE_API_KEY:'fixture-only',ZAPI_INSTANCE_ID:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',ZAPI_INSTANCE_TOKEN:'fixture-only',ZAPI_CLIENT_TOKEN:'fixture-client-token',ZAPI_WEBHOOK_SECRET:'fixture-webhook-secret',ZAPI_WEBHOOK_URL:'https://fixture.test/api/z-api/events'};
 let outbound=0,modelFailure=false,clientTurn=0;
 const products=[{id:1000,nome:'TELA IPHONE 12 INCELL',quantidade:40,valorVenda:100,excluido:0,snExibirCatalogo:1,snPeca:1,produtoDisponibilidadeId:1},{id:1001,nome:'TELA IPHONE 12 OLED',quantidade:40,valorVenda:150,excluido:0,snExibirCatalogo:1,snPeca:1,produtoDisponibilidadeId:1}];
 const output=(value)=>Response.json({output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}],usage:{input_tokens:100,output_tokens:50}});
@@ -47,7 +47,7 @@ globalThis.fetch=async(input,init)=>{const url=new URL(String(input));
   if(url.pathname.endsWith('/stores'))return Response.json({stores:[{system_unit_id:4046,name:'Fixture Store'}]});
   if(url.pathname.endsWith('/inventory')){const id=Number(url.searchParams.get('codigoProduto'));return Response.json({items:products.filter(p=>p.id===id),total:1,page:1,limit:100});}
  }
- if(url.hostname==='free.uazapi.com'){outbound++;throw new Error('PRODUCTION SEND FORBIDDEN');}
+ if(url.hostname==='api.z-api.io'){outbound++;throw new Error('PRODUCTION SEND FORBIDDEN');}
  throw new Error('Unexpected HTTP '+url.href);
 };
 const core=await import('../lib/server/core.ts');

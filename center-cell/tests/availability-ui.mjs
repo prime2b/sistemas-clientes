@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {ceciAvailability} from '../lib/ceci-availability.ts';
 import {integrationView} from '../lib/integrations-view.ts';
 const steps=['erp','catalog','openai','internal','whatsapp','receiver'].map(id=>({id,label:id,done:!['whatsapp','receiver'].includes(id),detail:id+' pending',page:'integrations'}));
-const data={config:{enabled:false,model:'gpt-5.6-terra'},ceciPaused:true,activation:{ready:false,steps,completed:4,total:6,checks:{}},secrets:{OPENAI_API_KEY:true,UAZAPI_INSTANCE_TOKEN:true},catalog:{count:5251,synced:1},uazapiUrl:'',uazapiWebhookReady:true};
+const data={config:{enabled:false,model:'gpt-5.6-terra'},ceciPaused:true,activation:{ready:false,steps,completed:4,total:6,checks:{}},secrets:{OPENAI_API_KEY:true,ZAPI_INSTANCE_TOKEN:true,ZAPI_CLIENT_TOKEN:true},catalog:{count:5251,synced:1},zapiInstanceId:'fixture',zapiWebhookReady:true};
 const ai=ceciAvailability(data),view=integrationView(data);
 assert.equal(ai.label,'Validada');assert.equal(ai.internalReady,true);assert.equal(ai.tone,'ativa');
 assert.match(ai.detail,/produção/);
