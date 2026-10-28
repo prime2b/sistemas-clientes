@@ -177,6 +177,14 @@ export async function resetCeciOrder(id:string){
   memory.cart=[];memory.lastOptions=[];memory.currentQuoteId='';memory.pending='';memory.nextAction='';memory.updatedAt=Date.now();
   await setting('ceci:memory:'+id,memory);
 }
+export async function beginCeciSession(id:string,firstMessageId:string){
+ const first=await one("SELECT rowid AS seq FROM messages WHERE id=? AND conversation_id=? AND role='user'",firstMessageId,id);
+ if(!first)return;
+ await db().batch([
+  db().prepare('DELETE FROM settings WHERE key IN (?,?,?)').bind('ceci:memory:'+id,'ceci:progress:'+id,'ceci:retry:'+id),
+  db().prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('ceci:session:'+id,JSON.stringify({firstSeq:Number(first.seq),at:Date.now()}))
+ ]);
+}
 export async function forgetCeciMemory(id:string){await run('DELETE FROM settings WHERE key IN (?,?)','ceci:memory:'+id,'ceci:progress:'+id);}
 export type CeciReply={body:string;handoff:boolean;card?:ChatCardData;parts?:{body:string;card:ChatCardData}[];target:number;result:AgentResult;quoteId:string;deletedCount:number};
 export async function chatReply(id:string,options?:{signal?:AbortSignal;target?:number}):Promise<CeciReply|undefined>{
@@ -201,11 +209,12 @@ export async function chatReply(id:string,options?:{signal?:AbortSignal;target?:
   const productionConfig=await config(),testPolicy=c.channel==='test'?await ensureTestPolicy(id):null;
   const cfg=testPolicy?{...productionConfig,model:testPolicy.models.ceci}:productionConfig,key=await secret('OPENAI_API_KEY');
   if(!key)throw new Error('Conecte a OpenAI em Integrações para testar a IA.');
-  const history=await all("SELECT id,role,body,card_data,created FROM messages WHERE conversation_id=? AND rowid<=? AND deleted_at=0 AND role IN ('user','assistant','agent') ORDER BY rowid DESC LIMIT 40",id,target);
+  const sessionStart=Number((await getSetting('ceci:session:'+id))?.firstSeq||0);
+  const history=await all("SELECT id,role,body,card_data,created FROM messages WHERE conversation_id=? AND rowid<=? AND rowid>=? AND deleted_at=0 AND role IN ('user','assistant','agent') ORDER BY rowid DESC LIMIT 40",id,target,sessionStart);
   const messages=history.reverse() as {id:string;role:string;body:string;created:number}[];
   const profile=c.profile==='nao_identificado'&&(commercialProfileEvidence(messages)!==null||cfg.flowMode==='catalog_handoff'&&cfg.catalogPricing==='lojista')?'lojista':c.profile;
   const memory=readCeciMemory(await getSetting('ceci:memory:'+id));
-  const latestCard=await one("SELECT card_data,created FROM messages WHERE conversation_id=? AND deleted_at=0 AND CASE WHEN json_valid(card_data) THEN json_extract(card_data,'$.type') ELSE NULL END='quote' ORDER BY rowid DESC LIMIT 1",id);
+  const latestCard=await one("SELECT card_data,created FROM messages WHERE conversation_id=? AND rowid>=? AND deleted_at=0 AND CASE WHEN json_valid(card_data) THEN json_extract(card_data,'$.type') ELSE NULL END='quote' ORDER BY rowid DESC LIMIT 1",id,sessionStart);
   const card=latestCard?parseChatCard(latestCard.card_data):null;
   if(card?.type==='quote'&&card.status!=='approved'&&Number(latestCard!.created)>memory.updatedAt){
     memory.cart=card.items.map(item=>({productId:item.productId,quantity:item.quantity}));
@@ -294,8 +303,8 @@ export async function chatReply(id:string,options?:{signal?:AbortSignal;target?:
     history:async(query)=>{
       const firstId=messages[0]?.id||'';
       const rows=query
-        ? await all("SELECT id,role,body,created FROM messages WHERE conversation_id=? AND deleted_at=0 AND role IN ('user','assistant','agent') AND rowid<=? AND body LIKE ? ESCAPE '\\' ORDER BY rowid DESC LIMIT 30",id,target,'%'+query.replace(/[\\%_]/g,'\\$&')+'%')
-        : await all("SELECT id,role,body,created FROM messages WHERE conversation_id=? AND deleted_at=0 AND role IN ('user','assistant','agent') AND rowid<(SELECT rowid FROM messages WHERE id=?) ORDER BY rowid DESC LIMIT 30",id,firstId);
+        ? await all("SELECT id,role,body,created FROM messages WHERE conversation_id=? AND rowid>=? AND deleted_at=0 AND role IN ('user','assistant','agent') AND rowid<=? AND body LIKE ? ESCAPE '\\' ORDER BY rowid DESC LIMIT 30",id,sessionStart,target,'%'+query.replace(/[\\%_]/g,'\\$&')+'%')
+        : await all("SELECT id,role,body,created FROM messages WHERE conversation_id=? AND rowid>=? AND deleted_at=0 AND role IN ('user','assistant','agent') AND rowid<(SELECT rowid FROM messages WHERE id=?) ORDER BY rowid DESC LIMIT 30",id,sessionStart,firstId);
       return rows.reverse() as {id:string;role:string;body:string;created:number}[];
     }
   }});

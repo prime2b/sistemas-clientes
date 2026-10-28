@@ -98,7 +98,7 @@ await post(winner,{action:'readConversation',id:conversationId,unread:true});ass
 assert.equal((await post(other,{action:'quote',conversationId,profile:'lojista',items:[{productId:1000,quantity:2}]})).status,409);
 const qr=await post(winner,{action:'quote',conversationId,profile:'lojista',items:[{productId:1000,quantity:2}]});assert.equal(qr.status,200);const q=await qr.json();assert.equal((await post(winner,{action:'sendQuote',conversationId,quoteId:q.id})).status,200);assert.equal((await post(winner,{action:'sendQuote',conversationId,quoteId:q.id})).status,409);
 await post(winner,{action:'assignConversation',id:conversationId,assigned:'Atendente 3'});assert.equal((await post(winner,{action:'message',id:conversationId,role:'agent',body:'Não sou mais responsável'})).status,409);assert.equal((await get(3)).data.conversations[0].isMine,true);
-const {shouldRestartWithCeci}=await import('../lib/server/ceci-policy.ts');assert.equal(shouldRestartWithCeci({status:'human',assigned:''},true,true,false,true),false);assert.equal(shouldRestartWithCeci({status:'closed',assigned:''},true,true,false,true),false);
+const {shouldRestartWithCeci}=await import('../lib/server/ceci-policy.ts');assert.equal(shouldRestartWithCeci({status:'human',assigned:''},true,true,false,true),false);assert.equal(shouldRestartWithCeci({status:'closed',assigned:''},true,true,false,true),true);
 assert.equal((await core.config()).enabled,false);assert.equal(await core.getSetting('ceci:manualPause'),true);
 console.log('PASS central operations: individual login, shared visibility, admin isolation, origin, atomic claim, ownership, per-user read cursors, late messages, mark unread, human quote/send, duplicate guard, transfer and no bot restart');
 

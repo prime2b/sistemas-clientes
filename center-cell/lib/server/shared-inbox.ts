@@ -84,8 +84,15 @@ export async function sharedPost(request:Request,user:AppUser,raw:Row):Promise<R
   }
   if(raw.action==='conversation'){
    const status=z.enum(['bot','human','closed']).parse(raw.status),p=profile.parse(raw.profile),notes=z.string().max(4000).parse(raw.notes);
-   await core.run("UPDATE conversations SET status=?,profile=?,notes=?,assigned=CASE WHEN ?='bot' THEN '' ELSE assigned END,assigned_user_id=CASE WHEN ?='bot' THEN '' ELSE assigned_user_id END,updated=? WHERE id=?",status,p,notes,status,status,now,conversationId);
-   if(status!==c.status)await core.addMessage(conversationId,'note',user.displayName+(status==='closed'?' finalizou o atendimento.':status==='bot'?' devolveu explicitamente o atendimento à Ceci.':' reabriu o atendimento.'));return json({ok:true});
+   const realWhatsApp=['whatsapp_web','whatsapp'].includes(c.channel);
+   const inbound=status==='bot'&&realWhatsApp?await core.latestCeciInbound(conversationId):null;
+   const pending=!!inbound&&!await core.one("SELECT id FROM messages WHERE conversation_id=? AND rowid>? AND role IN ('agent','assistant') AND deleted_at=0 LIMIT 1",conversationId,inbound.seq);
+   const {activateCeciForInbound,processCeci}=await import('./ceci-inbound');
+   if(status==='bot'&&realWhatsApp&&!await activateCeciForInbound(await core.config()))return json({error:'A Ceci está pausada ou há uma conexão pendente. Ative a Ceci em Integrações antes de devolver o atendimento.'},409);
+   await core.run("UPDATE conversations SET status=?,profile=?,notes=?,assigned=CASE WHEN ?='bot' THEN '' ELSE assigned END,assigned_user_id=CASE WHEN ?='bot' THEN '' ELSE assigned_user_id END,claimed_at=CASE WHEN ?='bot' THEN 0 ELSE claimed_at END,updated=? WHERE id=?",status,p,notes,status,status,status,now,conversationId);
+   if(status!==c.status)await core.addMessage(conversationId,'note',user.displayName+(status==='closed'?' finalizou o atendimento.':status==='bot'?' devolveu explicitamente o atendimento à Ceci.':' reabriu o atendimento.'));
+   if(pending){const {waitUntil}=await import('cloudflare:workers');waitUntil(processCeci(conversationId));}
+   return json({ok:true,ceciScheduled:pending});
   }
   if(raw.action==='archiveConversation'){await core.run('UPDATE conversations SET archived_at=? WHERE id=?',z.boolean().parse(raw.archive)?now:0,conversationId);return json({ok:true});}
   if(raw.action==='deleteConversation'){

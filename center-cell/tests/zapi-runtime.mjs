@@ -15,7 +15,7 @@ const DB={prepare:q=>new Statement(q),batch:async ss=>{sql.exec('BEGIN');try{con
 const instance='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',phone='5517999990000';
 globalThis.__zapiTasks=[];globalThis.__zapiFixture={DB,ZAPI_INSTANCE_ID:instance,ZAPI_INSTANCE_TOKEN:'fixture-instance-token',ZAPI_CLIENT_TOKEN:'fixture-client-token',ZAPI_WEBHOOK_SECRET:'fixture-callback-secret',ZAPI_WEBHOOK_URL:'https://fixture.test/api/z-api/events',OPENAI_API_KEY:'fixture-ai-key',MERCADOPHONE_API_KEY:'fixture-erp-key'};
 const core=await import('../lib/server/core.ts'),zapi=await import('../lib/server/zapi.ts'),hooks=await import('../app/api/z-api/events/route.ts'),pair=await import('../app/api/whatsapp-web/route.ts'),auth=await import('../lib/server/app-auth.ts');
-let connected=false,calls=[],sends=[],modelCalls=0,statusOverride=null,statusHttp=200,qrFailure=false,webhookFailure=false;
+let connected=false,calls=[],sends=[],modelCalls=0,modelInputs=[],statusOverride=null,statusHttp=200,qrFailure=false,webhookFailure=false;
 const destinations=new Map([['received-delivery','https://old.test/wrong-receiver']]);
 globalThis.fetch=async(input,init={})=>{
  const u=new URL(String(input));
@@ -31,7 +31,7 @@ globalThis.fetch=async(input,init={})=>{
   if(path==='/send-text'){sends.push(JSON.parse(init.body));return Response.json({messageId:'fixture-out-'+sends.length});}
  }
  if(u.hostname==='api.openai.com'){
-  modelCalls++;const payload=JSON.parse(init.body);assert.equal(payload.model,'gpt-5.6-terra');
+  modelCalls++;const payload=JSON.parse(init.body);modelInputs.push(payload);assert.equal(payload.model,'gpt-5.6-terra');
   return Response.json({output:[{type:'function_call',name:'responder_cliente',call_id:crypto.randomUUID(),arguments:JSON.stringify({texto:'Oi! Qual peça você precisa e para qual modelo?',proximoPasso:'',contexto:{fatos:[],pendencia:'Peça e modelo',proximaAcao:'Consultar catálogo'}})}],usage:{input_tokens:100,output_tokens:30}});
  }
  throw new Error('Fixture blocked network escape: '+u.hostname);
@@ -95,6 +95,26 @@ assert.equal((await manage.POST(new Request('https://fixture.test/api/manage',{m
 const humanResponse=await manage.POST(new Request('https://fixture.test/api/manage',{method:'POST',headers:adminHeaders,body:JSON.stringify({action:'message',id:c.id,role:'agent',body:'Vou concluir a compra com você.'})}));
 assert.equal(humanResponse.status,200,await humanResponse.text());assert.equal(sends.length,humanBefore+1);assert.equal(sends.at(-1).message,'Vou concluir a compra com você.');
 console.log('PASS actual operator route: authenticated shared-inbox response goes through Z-API after human assignment');
+// Reported screenshot: a number with an old human reply must not remain owned forever.
+async function previousSession(suffix,status,old=true,recentClaim=false){
+ const id=crypto.randomUUID(),number='551799998'+suffix,at=old?Date.now()-25*60*60*1000:Date.now();
+ await core.run("INSERT INTO conversations(id,name,phone,channel,profile,status,assigned,assigned_user_id,claimed_at,updated,last_inbound) VALUES(?,'Cliente antigo',?,'whatsapp_web','lojista',?,'Fixture','fixture-owner',?,?,?)",id,number,status,recentClaim?Date.now():at,at,at);
+ const a=await core.addMessage(id,'user','OLD_SESSION_REQUEST'),b=await core.addMessage(id,'agent','OLD_SESSION_ANSWER');await core.run('UPDATE messages SET created=? WHERE id IN (?,?)',at,a,b);
+ await core.setting('ceci:memory:'+id,{version:1,cart:[{productId:999,quantity:8}],facts:[],products:[],lastOptions:[999],currentQuoteId:'old-quote',introduced:true,updatedAt:at});
+ return {id,number};
+}
+for(const [suffix,status] of [['0001','human'],['0002','closed']]){
+ const previous=await previousSession(suffix,status),before=sends.length;
+ await event(received({phone:previous.number,text:{message:'Oi, preciso fazer uma nova cotação'}}));await Promise.all(globalThis.__zapiTasks.splice(0));
+ assert.equal(sends.length,before+1);const row=await core.one('SELECT * FROM conversations WHERE id=?',previous.id);assert.equal(row.status,'bot');assert.equal(row.assigned_user_id,'');assert.equal(row.claimed_at,0);assert.equal((await core.getSetting('ceci:memory:'+previous.id)).currentQuoteId,'');assert.doesNotMatch(JSON.stringify(modelInputs.at(-1)),/OLD_SESSION|old-quote/);assert.ok(await core.getSetting('ceci:session:'+previous.id));
+}
+for(const recentClaim of [false,true]){const active=await previousSession(recentClaim?'0003':'0004','human',recentClaim,recentClaim),before=sends.length;await event(received({phone:active.number}));assert.equal(globalThis.__zapiTasks.length,0);assert.equal(sends.length,before);assert.equal((await core.one('SELECT status FROM conversations WHERE id=?',active.id)).status,'human');}
+const returned=await previousSession('0005','human',false),beforeReturn=sends.length;await event(received({phone:returned.number,text:{message:'Oi Fred'}}));assert.equal(globalThis.__zapiTasks.length,0);
+const handback=()=>manage.POST(new Request('https://fixture.test/api/manage',{method:'POST',headers:adminHeaders,body:JSON.stringify({action:'conversation',id:returned.id,status:'bot',profile:'lojista',notes:''})}));
+assert.equal((await handback()).status,200);await Promise.all(globalThis.__zapiTasks.splice(0));assert.equal(sends.length,beforeReturn+1,'returning to Ceci must process the already received pending text immediately');assert.equal((await core.one('SELECT claimed_at FROM conversations WHERE id=?',returned.id)).claimed_at,0);
+assert.equal((await handback()).status,200);await Promise.all(globalThis.__zapiTasks.splice(0));assert.equal(sends.length,beforeReturn+1,'repeating handback must not send a second reply');
+await core.setting('ceci:manualPause',true);assert.equal((await handback()).status,409);await core.setting('ceci:manualPause',false);
+console.log('PASS reported old-number regression: closed and 24h-idle sessions restart on inbound, stale owner/cart/history cleared, current human sessions and recent claims preserved, explicit handback answers pending text once and surfaces global pause');
 await core.setting('ceci:manualPause',true);
 const privateLid='999999999999999@lid',sharedLid='888888888888888@lid';
 assert.equal((await event(received({phone:privateLid,chatLid:privateLid}))).status,200);assert.ok(await core.one('SELECT id FROM conversations WHERE phone=?','lid:999999999999999'));

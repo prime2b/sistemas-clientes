@@ -4,11 +4,17 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 88.
-- Commit de origem: `092748fe13f1b020cfb591d7e177743355fd5c92`.
+- Sites: versão 89.
+- Commit de origem: `b7c18521dce49f7289caee39e60f277759fbfb1c`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Retomada de atendimento de números conhecidos
+
+A versão 89 corrige o início do atendimento em números com histórico humano antigo. Conversas finalizadas ou sem interação pública por 24 horas iniciam uma nova sessão ao chegar texto; uma posse recente da equipe impede a retomada automática. A comparação da posse protege uma atendente que assume durante o recebimento. O histórico permanece no painel, e a IA usa o contexto da sessão nova, sem reaproveitar pedido e orçamento antigos.
+
+Devolver à Ceci passa a agendar a resposta à mensagem já recebida, limpando a atribuição e a data da posse. Não dispara resposta se a mensagem já foi atendida e informa se a pausa ou as conexões impedem a ativação. O problema de histórico antigo foi reproduzido nas rotas da versão anterior; os mesmos cenários passam nas rotas corrigidas com HTTP simulado, inclusive no código compilado.
 
 ## Ativação da Ceci após o QR Code
 

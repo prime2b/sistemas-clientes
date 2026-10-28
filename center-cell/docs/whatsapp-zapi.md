@@ -27,6 +27,14 @@ A leitura do QR inicia a Ceci após a confirmação real da conexão; a geraçã
 
 A Ceci segue as configurações existentes e a propriedade humana da conversa. Uma pausa manual posterior permanece válida em consultas e reconexões automáticas; somente uma nova ação de conectar/ativar solicita retomada. Desconectar cancela essa solicitação. Conversas criadas durante a pausa e ainda sem participação da equipe/Ceci retomam com uma nova mensagem, sem assumir atendimentos já atribuídos ou respondidos. A integração atende ao bot e às respostas das atendentes no mesmo painel. Confirmações de envio/entrega/leitura são monotônicas e podem chegar antes da gravação da mensagem.
 
+## Novas visitas e devolução à Ceci
+
+A atribuição humana vale para a sessão atual. Mensagens de texto em conversas finalizadas ou sem interação pública há 24 horas iniciam uma nova sessão com a Ceci, desde que a automação esteja disponível. Uma atendente que acabou de assumir mantém a posse mesmo quando o histórico é antigo. A janela considera mensagens do cliente, Ceci e equipe, além da última ação de assumir; notas internas não prolongam sozinhas a sessão. Mídia e pausa global continuam impedindo respostas automáticas.
+
+Ao reiniciar, a central preserva o histórico para a equipe, mas começa o contexto da IA na nova mensagem, limpa o pedido anterior e remove a atribuição antiga. A atualização compara a posse original para não sobrescrever alguém que assumiu durante o recebimento.
+
+A ação explícita **Devolver à Ceci** valida a disponibilidade, limpa também a data da posse e agenda a resposta a uma mensagem pendente imediatamente. Se alguém já respondeu à última mensagem, a ação não cria uma nova resposta; repetições continuam protegidas pela fila e pela identificação do lote. Uma pausa ou conexão pendente é informada ao operador, sem apresentar uma devolução bem-sucedida que não pode responder.
+
 Os receptores `/api/uazapi/events` e `/api/whatsapp-web/events` estão desativados (410) para não processar a mesma conversa por dois provedores. Segredos antigos permanecem protegidos para permitir retorno ao checkpoint, sem serem utilizados pelo canal atual.
 
 ## Verificação

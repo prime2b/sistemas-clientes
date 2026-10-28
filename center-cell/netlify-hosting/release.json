@@ -1,6 +1,6 @@
 {
-  "version": 88,
-  "sourceCommit": "092748fe13f1b020cfb591d7e177743355fd5c92",
-  "release": "ativar-ceci-na-conexao-qr-e-corrigir-recebimento",
+  "version": 89,
+  "sourceCommit": "b7c18521dce49f7289caee39e60f277759fbfb1c",
+  "release": "iniciar-ceci-em-nova-sessao-e-responder-devolucao",
   "date": "2026-10-27"
 }

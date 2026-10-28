@@ -41,13 +41,17 @@ export async function POST(request:Request){
   // Recover conversations created while the bot was unavailable, only if no
   // person/bot has ever taken part. Established human ownership still wins.
   const untouched=canRun&&!!text&&c!.status==='human'&&!c!.assigned&&!c!.assigned_user_id&&!c!.claimed_at&&!await core.one("SELECT id FROM messages WHERE conversation_id=? AND role IN ('assistant','agent','note') LIMIT 1",cid);
-  const restart=untouched||shouldRestartWithCeci(c! as {status:string;assigned:string},cfg.enabled,!!text,replied,cfg.sharedInbox);
-  await core.run('UPDATE conversations SET last_inbound=?,archived_at=0,status=?,assigned=? WHERE id=?',Date.now(),restart?'bot':c!.status==='closed'?'human':c!.status,restart?'':c!.assigned,cid);
-  if(restart&&c!.status==='closed')await core.resetCeciOrder(cid);
+  const lastInteraction=await core.one("SELECT MAX(created) AS at FROM messages WHERE conversation_id=? AND deleted_at=0 AND role IN ('user','assistant','agent')",cid);
+  const restart=canRun&&(untouched||shouldRestartWithCeci(c! as {status:string;assigned:string;claimed_at:number},true,!!text,replied,cfg.sharedInbox,{lastInteraction:Number(lastInteraction?.at||c!.last_inbound||0),now:Date.now()}));
+  await core.run('UPDATE conversations SET last_inbound=?,archived_at=0 WHERE id=?',Date.now(),cid);
+  // Compare ownership so an attendant claiming during reception always wins.
+  const restarted=restart?!!(await core.run("UPDATE conversations SET status='bot',assigned='',assigned_user_id='',claimed_at=0 WHERE id=? AND status=? AND assigned=? AND assigned_user_id=? AND claimed_at=?",cid,c!.status,c!.assigned,c!.assigned_user_id,Number(c!.claimed_at||0))).meta.changes:false;
+  if(!canRun)await core.run("UPDATE conversations SET status='human' WHERE id=? AND status='closed'",cid);
   await core.addMessage(cid,'user',text||'[Mídia recebida. Atendimento humano necessário.]','received',id);
+  if(restarted&&!untouched)await core.beginCeciSession(cid,id);
   const photo=String(p.senderPhoto||p.photo||'');try{const url=new URL(photo);if(url.protocol==='https:'&&/(^|\.)(whatsapp\.net|fbcdn\.net|z-api\.io)$/.test(url.hostname))await core.setting('chatAvatar:'+cid,{url:url.href,at:Date.now()});}catch{}
   if(!text)await core.run("UPDATE conversations SET status='human' WHERE id=?",cid);
-  else if(canRun&&(c!.status==='bot'||restart))waitUntil(processCeci(cid));
+  else if(canRun&&(await core.one('SELECT status FROM conversations WHERE id=?',cid))?.status==='bot')waitUntil(processCeci(cid));
   return ok();
   }finally{await core.run("DELETE FROM settings WHERE key=? AND json_extract(value,'$.token')=?",lease,leaseToken);}
  }catch{console.warn('zapi_webhook_processing_failed');return new Response('Retry later',{status:500});}
