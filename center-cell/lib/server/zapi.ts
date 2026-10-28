@@ -6,7 +6,7 @@ export async function instanceId(){return String(await core.secret('ZAPI_INSTANC
 export async function credentialsReady(){return !!(await instanceId()&&await core.secret('ZAPI_INSTANCE_TOKEN')&&await core.secret('ZAPI_CLIENT_TOKEN'));}
 export async function connection(){const saved=await core.getSetting('check:whatsappWeb');return saved?.provider==='zapi'&&saved.instanceId===await instanceId()?saved:null;}
 export async function received(){const saved=await core.getSetting('check:whatsappWebReceived');return saved?.provider==='zapi'&&saved.instanceId===await instanceId()?saved:null;}
-async function fingerprint(){const values=await Promise.all(['ZAPI_INSTANCE_ID','ZAPI_INSTANCE_TOKEN','ZAPI_CLIENT_TOKEN'].map(core.secret));return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([...values,core.runtime.ZAPI_WEBHOOK_URL]))))].map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function fingerprint(){const values=await Promise.all(['ZAPI_INSTANCE_ID','ZAPI_INSTANCE_TOKEN','ZAPI_CLIENT_TOKEN','ZAPI_WEBHOOK_SECRET'].map(core.secret));return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(['received-delivery-v2',...values,core.runtime.ZAPI_WEBHOOK_URL]))))].map(b=>b.toString(16).padStart(2,'0')).join('');}
 export async function webhookConfigured(){const saved=await core.getSetting('zapi:webhooks');return !!saved?.ok&&saved.fingerprint===await fingerprint();}
 export async function call(path:string,method:'GET'|'PUT'|'POST'='GET',body?:Record<string,unknown>){
  const [id,token,clientToken]=await Promise.all([instanceId(),core.secret('ZAPI_INSTANCE_TOKEN'),core.secret('ZAPI_CLIENT_TOKEN')]);
@@ -32,10 +32,13 @@ export async function callbackUrl(){
  if(!key){key=[...crypto.getRandomValues(new Uint8Array(32))].map(b=>b.toString(16).padStart(2,'0')).join('');await core.saveSecret('ZAPI_WEBHOOK_SECRET',key);}
  url.searchParams.set('key',key);return url.href;
 }
-export async function setup(){
- if(await webhookConfigured())return;
+export async function setup(force=false){
+ if(!force&&await webhookConfigured())return;
+ await core.setting('zapi:webhooks',null);
  const value=await callbackUrl();
- for(const route of ['received','connected','disconnected','message-status']){const result=await call('/update-webhook-'+route,'PUT',{value});if(result?.value===false)throw new Error('A Z-API não confirmou o recebimento de eventos. Tente configurar novamente.');}
+ // Z-API prioritizes received-delivery over received when notifySentByMe is
+ // enabled. Set both destinations; the receiver continues to filter own echoes.
+ await Promise.all(['received','received-delivery','connected','disconnected','message-status'].map(async route=>{const result=await call('/update-webhook-'+route,'PUT',{value});if(result?.value!==true)throw new Error('A Z-API não confirmou o recebimento de eventos. Tente configurar novamente.');}));
  await core.setting('zapi:webhooks',{ok:true,at:Date.now(),fingerprint:await fingerprint()});
 }
 export async function status(){const result=await call('/status');if(typeof result?.connected!=='boolean')throw new Error('A Z-API retornou um status de conexão inválido. Tente novamente.');const state=result.connected?'connected':'offline';await recordZapiConnection(state,await instanceId());return {state,provider:'zapi',...(typeof result.phone==='string'?{phone:result.phone}:{}),smartphoneConnected:result.smartphoneConnected===true};}
@@ -46,8 +49,10 @@ export function qrView(result:any){
  if(result?.challenge||result?.publicKey||result?.type==='challenge')return {state:'challenge',provider:'zapi',error:'Este aparelho exige uma verificação adicional. Conclua a conexão pelo painel ou pela extensão oficial da Z-API.'};
  throw new Error('A Z-API não retornou um QR Code válido. Atualize o código ou confira a instância.');
 }
-export async function connect(){await setup();const current=await status();if(current.state==='connected')return current;return qrView(await call('/qr-code/image'));}
-export async function disconnect(){await core.setting('whatsapp:manualDisconnectAt',Date.now());await call('/disconnect');await recordZapiConnection('offline',await instanceId(),'',true);await core.setting('check:whatsappWebReceived',null);return {state:'offline',provider:'zapi'};}
+export async function armCeciOnConnect(){await core.setting('zapi:startOnConnect',{instanceId:await instanceId(),pending:true,at:Date.now()});}
+export async function cancelCeciOnConnect(){await core.setting('zapi:startOnConnect',{instanceId:await instanceId(),pending:false,at:Date.now()});}
+export async function connect(){await setup(true);await armCeciOnConnect();const current=await status();if(current.state==='connected')return current;return qrView(await call('/qr-code/image'));}
+export async function disconnect(){await cancelCeciOnConnect();await core.setting('whatsapp:manualDisconnectAt',Date.now());await call('/disconnect');await recordZapiConnection('offline',await instanceId(),'',true);await core.setting('check:whatsappWebReceived',null);return {state:'offline',provider:'zapi'};}
 export async function send(phone:string,message:string){const number=phone.startsWith('lid:')?phone.slice(4)+'@lid':phone;if(!/^(?:\d{10,15}|\d{8,25}@lid)$/.test(number)||!message.trim())throw new Error('Mensagem ou destinatário WhatsApp inválido.');const result=await call('/send-text','POST',{phone:number,message});const id=String(result.messageId||result.id||'');if(!id||id.length>250)throw new Error('A Z-API não retornou a confirmação do envio. Confira o histórico antes de repetir.');return id;}
 export async function avatar(phone:string){const number=phone.startsWith('lid:')?phone.slice(4)+'@lid':phone;if(!/^(?:\d{10,15}|\d{8,25}@lid)$/.test(number))return '';const result=await call('/profile-picture?phone='+encodeURIComponent(number));return Array.isArray(result)?result[0]?.link:result.link||'';}
 

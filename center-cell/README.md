@@ -4,11 +4,19 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 87.
-- Commit de origem: `6ce6f1b26fd092e5ced39666c0acbfa7df554d17`.
+- Sites: versão 88.
+- Commit de origem: `092748fe13f1b020cfb591d7e177743355fd5c92`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Ativação da Ceci após o QR Code
+
+A versão 88 ativa a Ceci após a confirmação real de conexão, com as chaves, catálogo e recebimento prontos. Corrige a pausa anterior ao pareamento e elimina a dependência circular de uma primeira mensagem já recebida ou de testes históricos. Uma pausa manual posterior continua respeitada; conectar/ativar novamente solicita a retomada. Não envia mensagem espontânea nem chama a IA ao parear.
+
+As duas variantes de recebimento da Z-API são registradas na central, incluindo a variante prioritária `received-delivery`. Configurações antigas e mudanças da chave do callback invalidam o cadastro salvo e são reparadas na próxima confirmação de conexão. A tela informa separadamente conexão, Ceci ativa e recebimento validado, com ação para reparar recebimento. Conversas sem participação prévia da equipe/Ceci podem retomar na próxima mensagem; a posse humana é preservada.
+
+Testes de rotas reais com D1 isolado e HTTP simulado cobriram QR, ativação, recebimento/resposta, duplicações, pausa, retomada e falhas de configuração; compilação e fluxo completo simulado também verificados. A instância e a entrega real continuam dependendo da confirmação no aparelho e de uma nova mensagem externa.
 
 ## Ajuste de layout das integrações
 

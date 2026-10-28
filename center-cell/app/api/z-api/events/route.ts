@@ -30,7 +30,7 @@ export async function POST(request:Request){
   try{
   if(lid&&!rawPhone.endsWith('@lid'))await core.setting(mapKey,{phone:rawPhone});
   const existing=await core.one('SELECT conversation_id FROM messages WHERE id=?',id);
-  if(existing){const c=await core.one('SELECT status FROM conversations WHERE id=?',existing.conversation_id),cfg=await core.config();if(c?.status==='bot'&&cfg.enabled&&await activateCeciForInbound(cfg))waitUntil(processCeci(String(existing.conversation_id)));return ok();}
+  if(existing){const c=await core.one('SELECT status FROM conversations WHERE id=?',existing.conversation_id),cfg=await core.config();if(c?.status==='bot'&&await activateCeciForInbound(cfg))waitUntil(processCeci(String(existing.conversation_id)));return ok();}
   await core.setting('check:whatsappWebReceived',{provider:'zapi',instanceId:instance,at:Date.now()});
   await recordZapiConnection('connected',instance);const cfg=await core.config();const canRun=await activateCeciForInbound(cfg);
   let c=await core.one("SELECT * FROM conversations WHERE (phone=? OR phone=?) AND channel='whatsapp_web' ORDER BY updated DESC LIMIT 1",phone,alias||phone);
@@ -38,7 +38,10 @@ export async function POST(request:Request){
   if(!c){const cid=crypto.randomUUID();await core.run('INSERT INTO conversations(id,name,phone,channel,status,updated) VALUES(?,?,?,?,?,?)',cid,String(p.senderName||p.chatName||phone).slice(0,100),phone,'whatsapp_web',canRun?'bot':'human',Date.now());c=await core.one('SELECT * FROM conversations WHERE id=?',cid);}
   const cid=String(c!.id),text=typeof p.text?.message==='string'?p.text.message.slice(0,4000):'';
   const replied=c!.status==='human'&&!c!.assigned?!!await core.one("SELECT id FROM messages WHERE conversation_id=? AND role='agent' AND deleted_at=0 LIMIT 1",cid):false;
-  const restart=shouldRestartWithCeci(c! as {status:string;assigned:string},cfg.enabled,!!text,replied,cfg.sharedInbox);
+  // Recover conversations created while the bot was unavailable, only if no
+  // person/bot has ever taken part. Established human ownership still wins.
+  const untouched=canRun&&!!text&&c!.status==='human'&&!c!.assigned&&!c!.assigned_user_id&&!c!.claimed_at&&!await core.one("SELECT id FROM messages WHERE conversation_id=? AND role IN ('assistant','agent','note') LIMIT 1",cid);
+  const restart=untouched||shouldRestartWithCeci(c! as {status:string;assigned:string},cfg.enabled,!!text,replied,cfg.sharedInbox);
   await core.run('UPDATE conversations SET last_inbound=?,archived_at=0,status=?,assigned=? WHERE id=?',Date.now(),restart?'bot':c!.status==='closed'?'human':c!.status,restart?'':c!.assigned,cid);
   if(restart&&c!.status==='closed')await core.resetCeciOrder(cid);
   await core.addMessage(cid,'user',text||'[Mídia recebida. Atendimento humano necessário.]','received',id);

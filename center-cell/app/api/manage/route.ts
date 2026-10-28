@@ -112,10 +112,10 @@ export async function POST(request:Request){
         const agentChanged=(['name','greeting','instructions','handoff','model'] as const).some(key=>previous[key]!==a.config[key]);
         const pausedForValidation=agentChanged&&a.config.enabled;
         const next=pausedForValidation?{...a.config,enabled:false}:a.config;
-        if(next.enabled&&!(await integrationStatus(next)).ready)return json({error:'Conclua as etapas de ativação em Integrações antes de ligar o atendimento automático.'},409);
+        if(next.enabled){const status=await integrationStatus(next);if(!(next.whatsappMode==='web'?status.automation?.ready:status.ready))return json({error:'Conclua as conexões e a sincronização do catálogo em Integrações antes de ligar o atendimento automático.'},409);}
         await core.saveConfig(next);
         // Only the explicit automation switch is a manual pause. Validation must resume automatically.
-        if(a.automationIntent)await core.setting('ceci:manualPause',!a.config.enabled);
+        if(a.automationIntent){await core.setting('ceci:manualPause',!a.config.enabled);await zapi.cancelCeciOnConnect();}
         return json({ok:true,pausedForValidation});
       }
       case 'secret':

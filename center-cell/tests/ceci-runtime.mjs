@@ -174,7 +174,7 @@ assert.equal((await core.config()).enabled,false);
 assert.equal(await core.getSetting('ceci:manualPause'),true);
 assert.equal(sent.length,outgoing);
 modelStatus=0;globalThis.__ceciTestEnv.ZAPI_INSTANCE_TOKEN='fixture-only';
-// Automatic activation respects explicit pauses and all readiness checks.
+// Automatic activation respects explicit pauses and live prerequisites.
 const {signature}=await import('../lib/server/integrations.ts');
 const zapi=await import('../lib/server/zapi.ts');await zapi.setup();
 const cfg=await core.config();cfg.enabled=false;
@@ -183,7 +183,7 @@ await core.setting('check:whatsappWeb',{provider:'zapi',instanceId:'AAAAAAAAAAAA
 await core.setting('ceci:manualPause',true);
 assert.equal(await inbound.activateCeciForInbound(cfg),false);
 await core.setting('ceci:manualPause',false);
-assert.equal(await inbound.activateCeciForInbound(cfg),false);
+assert.equal(await inbound.activateCeciForInbound(cfg),true,'first-message and old test badges cannot block a configured connected agent');
 await core.setting('erpCheck',{at:Date.now()});
 await core.setting('sync',{complete:true});
 await core.setting('check:whatsappWebReceived',{provider:'zapi',instanceId:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',at:Date.now()});

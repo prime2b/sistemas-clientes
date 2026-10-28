@@ -2,6 +2,7 @@ import * as core from './core';
 import {drainCeci} from './ceci-queue';
 import {integrationStatus} from './integrations';
 import * as zapi from './zapi';
+import {ceciAutomationReadiness} from './ceci-activation';
 
 const backgroundBudgetMs=26_000;
 const foregroundBudgetMs=60_000;
@@ -17,7 +18,9 @@ export async function activateCeciForInbound(cfg:Record<string,any>){
     core.secret('OPENAI_API_KEY'),zapi.credentialsReady(),zapi.connection()
   ]);
   if(!openai||!instance||!await zapi.webhookConfigured()||!connection?.connected)return false;
-  if(!(await integrationStatus(cfg)).ready)return false;
+  // Waiting for a first received message/internal-test badge here made startup
+  // circular. Live prerequisites are checked without calling any provider/model.
+  if(!(cfg.whatsappMode==='web'?(await ceciAutomationReadiness(cfg)).ready:(await integrationStatus(cfg)).ready))return false;
   await core.setting('config',{...cfg,enabled:true});
   cfg.enabled=true;
   return true;

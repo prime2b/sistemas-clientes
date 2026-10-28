@@ -2,6 +2,7 @@ import * as core from './core';
 import * as zapi from './zapi';
 import {reconcilePlaygroundValidation} from './playground-validation';
 import {TEST_MODEL} from '../playground-economy';
+import {ceciAutomationReadiness} from './ceci-activation';
 import {probeConnection, summarizeReadiness, type Service} from './integration-probes';
 
 export async function signature(service: Service | 'internal', cfg: Record<string,any>) {
@@ -45,7 +46,7 @@ export async function integrationStatus(cfg: Record<string,any>) {
   const economic=await core.getSetting('check:playgroundInternal'),economicValid=!!economic?.ok&&economic.fingerprint===await signature('internal',cfg);
   const agent={validated:!!checks.internal?.ok||economicValid,productionValidated:!!checks.internal?.ok,model:checks.internal?.ok?cfg.model:economicValid?economic.model||TEST_MODEL:null,mode:checks.internal?.ok?'production':economicValid?'economic':null,at:checks.internal?.ok?checks.internal.at:economicValid?economic.at:null};
   const connections={mercadophone:{connected:!!erp&&!!await core.secret('MERCADOPHONE_API_KEY')},openai:{connected:!!await core.secret('OPENAI_API_KEY')&&(!!checks.openai?.ok||modelChecks.some(c=>c.ok)),models:modelChecks.filter(c=>c.ok).map(c=>c.model)},whatsapp:{connected:webMode?!!await zapi.credentialsReady()&&!!webCheck?.connected:credentials&&!!checks.whatsapp?.ok}};
-  return {checks,agent,connections, ...summarizeReadiness([
+  return {checks,agent,connections,automation:webMode?await ceciAutomationReadiness(cfg):undefined, ...summarizeReadiness([
     {id:'erp',label:'Conexão com o MercadoPhone',done:!!erp && !!await core.secret('MERCADOPHONE_API_KEY'),detail:erp?'Consulta ao ERP validada.':'Teste a conexão com o ERP.',page:'integrations'},
     {id:'catalog',label:'Catálogo sincronizado',done:!!sync?.complete && Number(catalog?.count)>0,detail:sync?.complete?`${catalog?.count || 0} produtos no catálogo.`:'Conclua a sincronização dos produtos.',page:'catalog'},
     {id:'openai',label:'Acesso ao modelo de IA',done:!!checks.openai?.ok,detail:checks.openai?.message || 'Adicione a chave e teste o acesso ao modelo.',page:'integrations'},
