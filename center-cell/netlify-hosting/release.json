@@ -1,6 +1,6 @@
 {
-  "version": 93,
-  "sourceCommit": "ec941341e7dcb401a742fbfdef686da54cdc8684",
-  "release": "corrigir-contexto-fetch-do-pareamento",
+  "version": 94,
+  "sourceCommit": "7e1e89bb226ba37c6c81ba9c9e44872f56f5f9d5",
+  "release": "reconhecer-validacao-do-playground-na-etapa-da-ceci",
   "date": "2026-10-28"
 }

@@ -8,6 +8,8 @@
 
 Um teste econômico com Luna comprova a conexão da OpenAI e a resposta do playground. Ele não comprova acesso ao modelo de produção se esse modelo for diferente. O indicador da Ceci mostra Validada e explica o escopo do teste. Quando o mesmo modelo configurado para produção responde com a configuração atual, a evidência também atende à validação desse modelo.
 
+Em Integrações → OpenAI, a etapa **Validação da Ceci** usa essa mesma evidência, incluindo testes econômicos: fica verde e concluída, mostra data e modelo utilizado e oferece **Revisar testes no playground**. Não solicita uma nova validação enquanto a evidência atual for válida. O acesso ao modelo de atendimento continua na etapa própria; quando falta uma resposta com esse modelo, a preparação identifica especificamente **Resposta com o modelo de produção**, sem apresentar a validação da Ceci como pendente.
+
 ## Registros já existentes
 
 O painel recupera evidências das últimas 30 sessões com resposta publicada e assinatura da configuração atual. A recuperação cruza snapshot, cursor de resposta e medidor da chamada da Ceci; respostas apenas do cliente simulado/avaliador não validam a agente. Não são feitas novas chamadas externas ou gastos de tokens. Novas respostas do playground registram a validação ao serem publicadas.
@@ -16,4 +18,4 @@ Alteração de chave ou configuração invalida as evidências correspondentes. 
 
 ## Verificação
 
-`tests/integration-status-runtime.mjs` usa D1/SQLite e serviços simulados para verificar recuperação, assinatura atual, chamada da Ceci, distinção Luna/produção, contagem 3/3, recebimento pendente, invalidação e preservação da pausa. `tests/availability-ui.mjs` verifica os indicadores. O fluxo completo de `tests/shared-central-runtime.mjs` comprova que uma rotina registra sua validação a partir do medidor compartilhado do lote.
+`tests/integration-status-runtime.mjs` usa D1/SQLite e serviços simulados para verificar recuperação, assinatura atual, chamada da Ceci, distinção Luna/produção, contagem 3/3, recebimento pendente, invalidação e preservação da pausa. `tests/availability-ui.mjs` verifica os indicadores. `tests/playground-interface.mjs` renderiza a tela real de integrações com validação econômica, de produção e pendente. O fluxo completo de `tests/shared-central-runtime.mjs` comprova que uma rotina registra sua validação a partir do medidor compartilhado do lote.

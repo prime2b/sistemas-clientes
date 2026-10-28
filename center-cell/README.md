@@ -4,11 +4,17 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 93.
-- Commit de origem: `ec941341e7dcb401a742fbfdef686da54cdc8684`.
+- Sites: versão 94.
+- Commit de origem: `7e1e89bb226ba37c6c81ba9c9e44872f56f5f9d5`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Validação da Ceci em Integrações
+
+A versão 94 alinha a etapa Validação da Ceci à evidência já registrada pelo playground, inclusive no modo econômico. A etapa fica verde e concluída, informa data e modelo utilizado e oferece Revisar testes no playground. O aviso amarelo e o texto de teste interno pendente deixam de aparecer para uma validação atual. Uma configuração sem evidência válida continua pendente.
+
+A preparação identifica separadamente a resposta com o modelo de produção. Nenhuma evidência, aprovação, credencial ou ativação foi alterada; não foram executadas novas chamadas de IA. O problema foi reproduzido renderizando a tela real com o estado do print. As renderizações econômica, de produção e pendente passaram após a correção, assim como os indicadores, TypeScript e o build completo. Verificação em navegador autenticado indisponível.
 
 ## Contexto do fetch no navegador
 
