@@ -1,6 +1,6 @@
 {
-  "version": 86,
-  "sourceCommit": "2982edd0a2f30b50985997971a6f2984636f08cb",
-  "release": "reconciliar-validacao-e-integracoes",
+  "version": 87,
+  "sourceCommit": "6ce6f1b26fd092e5ced39666c0acbfa7df554d17",
+  "release": "corrigir-sobreposicao-integracoes",
   "date": "2026-10-27"
 }

@@ -4,11 +4,15 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 86.
-- Commit de origem: `2982edd0a2f30b50985997971a6f2984636f08cb`.
+- Sites: versão 87.
+- Commit de origem: `6ce6f1b26fd092e5ced39666c0acbfa7df554d17`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Ajuste de layout das integrações
+
+A versão 87 impede a lista de conexões de ultrapassar sua coluna e ficar por baixo do painel do WhatsApp. Os cards e indicadores usam linhas próprias, textos longos respeitam a largura disponível e o pareamento passa para uma coluna conforme o espaço real do painel. Ajustes restritos à tela de integrações; menu e regras da plataforma preservados. TypeScript e compilação aprovados. A prévia visual gerenciada permaneceu indisponível por conflito com o servidor do ambiente.
 
 ## Status da Ceci e das integrações
 

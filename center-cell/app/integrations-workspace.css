@@ -23,5 +23,19 @@
 @media(prefers-reduced-motion:reduce){.zi-qr-expiry>i{transition:none}}
 /* Preserve a genuinely large code even when the platform sidebar reduces the content width. */
 .ix-grid:has(.ix-zapi-detail){grid-template-columns:240px minmax(0,1fr)}.ix-zapi-detail{container-type:inline-size}
-@container(max-width:740px){.zi-workspace{display:flex;flex-direction:column;gap:25px}.zi-pairing{order:-1;width:min(100%,500px);align-self:center}.zi-instance{width:100%}.zi-qr-frame{max-width:440px;min-height:0}}
+@container(max-width:860px){.zi-workspace{display:flex;flex-direction:column;gap:25px}.zi-pairing{order:-1;width:min(100%,500px);align-self:center}.zi-instance{width:100%}.zi-qr-frame{max-width:440px;min-height:0}}
 @media(max-width:1023px){.ix-grid:has(.ix-zapi-detail){grid-template-columns:minmax(0,1fr)}}
+
+/* Keep integration cards inside their grid track, including the narrow Z-API column. */
+.ix-aside,.ix-aside>.ix-card{min-width:0;max-width:100%}
+.ix-connection-list{min-width:0;grid-template-columns:minmax(0,1fr)}
+.ix-connection{display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px 10px;min-width:0;max-width:100%;box-sizing:border-box}
+.ix-connection>.ix-app-icon{grid-column:1;grid-row:1 / span 2;align-self:center}
+.ix-connection-copy{grid-column:2;min-width:0;max-width:100%}
+.ix-connection-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ix-connection>.ix-pill{grid-column:2;justify-self:start;max-width:100%}
+.ix-prep-head>div:last-child{min-width:0}.ix-prep-head h2{overflow-wrap:anywhere}
+.zi-id-field input{min-width:0}.zi-workspace>*{min-width:0}
+@media(min-width:768px) and (max-width:1023px){.ix-connection-list{grid-template-columns:repeat(3,minmax(0,1fr))}.ix-connection{grid-template-columns:30px minmax(0,1fr);gap:7px}.ix-connection>.ix-app-icon{width:30px;height:30px;grid-row:1}.ix-connection-copy strong{font-size:11px}}
+@media(max-width:767px){.ix-connection-list{display:flex;gap:8px;max-width:100%;overflow-x:auto}.ix-connection{grid-template-columns:minmax(0,1fr);min-width:155px;flex:1 0 155px}.ix-connection-copy{grid-column:1}.ix-connection>.ix-app-icon{display:none}}
+@container(max-width:500px){.zi-credential-row{flex-wrap:wrap}.zi-section-heading{flex-wrap:wrap}}
