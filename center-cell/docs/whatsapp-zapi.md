@@ -8,6 +8,16 @@ Em Integrações → WhatsApp, configure ID da instância, token da instância e
 
 O Client-Token é diferente do token da instância. Sem ele, a central mostra a configuração pendente e não chama a API para gerar um QR fictício.
 
+### Atualização do Client-Token
+
+O botão **Validar e salvar** consulta `/status` com o novo Client-Token antes de substituir a credencial atual. O candidato fica apenas na memória dessa solicitação durante a validação. Erro de autenticação, indisponibilidade ou resposta inválida preservam a credencial anterior e a configuração da Ceci. Atualizações simultâneas são serializadas.
+
+Após a validação, o token é cifrado com a proteção existente no servidor. A central confirma o estado do aparelho e prepara os callbacks com a nova credencial, sem desconectar o WhatsApp, solicitar outro QR, apagar a prova de recebimento ou desligar a Ceci. Uma pausa automática anterior por validação pode ser retomada quando os requisitos estiverem prontos; a pausa manual continua respeitada inclusive nas verificações seguintes. Não são enviadas mensagens nem feitas chamadas à IA ao atualizar a credencial.
+
+Um aparelho realmente desconectado continua sendo informado como desconectado. Se a preparação dos callbacks falhar depois do salvamento, a interface informa que o token foi validado e salvo e que o recebimento aguarda recuperação. As verificações de conexão existentes tentam preparar o canal novamente. As demais credenciais mantêm o comportamento anterior.
+
+`tests/zapi-token-update-runtime.mjs` verifica a rota de gestão, validação antes da gravação, criptografia, preservação da ativação/pausa, recuperação do canal, falhas parciais, permissões e ausência de segredos nas respostas. Pode executar o mesmo conjunto contra a rota compilada com `TOKEN_COMPILED=1`.
+
 Ao gerar o QR ou reparar o recebimento, o servidor registra cinco callbacks na instância: as duas variantes de mensagens recebidas, conexão, desconexão e status das mensagens. A variante `received-delivery` tem prioridade na Z-API quando as notificações próprias estão habilitadas; ambas apontam para a mesma central, que continua ignorando mensagens próprias. Cada atualização exige confirmação `value: true`. O callback usa uma chave aleatória de 256 bits, protegida no servidor, e valida também o ID da instância. A versão da política e a chave do callback participam da impressão digital: instâncias já pareadas corrigem automaticamente configurações antigas na próxima confirmação de conexão.
 
 Variáveis de runtime, nunca no Git ou no manifesto:

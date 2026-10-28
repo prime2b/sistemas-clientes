@@ -1,7 +1,7 @@
 import * as core from './core';
 
 /** Shared connection alerts. Legacy UAZAPI checks cannot validate a Z-API session. */
-export async function recordZapiConnection(state:string,instanceId:string,reason='',manual=false){
+export async function recordZapiConnection(state:string,instanceId:string,reason='',manual=false,options?:{preservePause?:boolean}){
  const previous=await core.getSetting('check:whatsappWeb'),at=Date.now(),connected=state==='connected';
  const same=previous?.provider==='zapi'&&previous.instanceId===instanceId;
  await core.setting('check:whatsappWeb',{provider:'zapi',instanceId,connected,state,at});
@@ -10,13 +10,14 @@ export async function recordZapiConnection(state:string,instanceId:string,reason
  if(connected){
   await core.setting('whatsapp:manualDisconnectAt',0);await core.setting('whatsapp:disconnectAlert',null);
   const zapi=await import('./zapi');
+  if(options?.preservePause&&await core.getSetting('ceci:manualPause'))await zapi.cancelCeciOnConnect();
   try{
    // Also repairs already-paired instances after callback configuration changes.
    await zapi.setup();
    const start=await core.getSetting('zapi:startOnConnect'),cfg=await core.config();
    // First connection on this policy adopts the requested automatic startup;
    // subsequent polls/reconnections preserve a later explicit manual pause.
-   if((cfg.whatsappMode==='web'||(start?.pending&&start.instanceId===instanceId))&&(!start||start.instanceId!==instanceId||start.pending)){
+   if(!options?.preservePause&&(cfg.whatsappMode==='web'||(start?.pending&&start.instanceId===instanceId))&&(!start||start.instanceId!==instanceId||start.pending)){
     await core.setting('ceci:manualPause',false);
     await core.setting('config',{...cfg,whatsappMode:'web'});
     await zapi.cancelCeciOnConnect();

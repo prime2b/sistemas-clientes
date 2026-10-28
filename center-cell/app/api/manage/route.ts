@@ -119,9 +119,13 @@ export async function POST(request:Request){
         return json({ok:true,pausedForValidation});
       }
       case 'secret':
+        if(a.key==='ZAPI_CLIENT_TOKEN'){
+          try{return json(await zapi.updateClientToken(a.value));}
+          catch(error){return error instanceof zapi.ClientTokenUpdateError?json({error:error.message},error.status):json({error:'Não foi possível concluir a atualização segura do Client-Token. Verifique a conexão e tente novamente.'},503);}
+        }
         await core.saveSecret(a.key,a.value);
         if(a.key==='MERCADOPHONE_API_KEY')await core.setting('erpCheck',null);
-        if(a.key==='WHATSAPP_WEB_BRIDGE_TOKEN'||a.key==='ZAPI_INSTANCE_TOKEN'||a.key==='ZAPI_CLIENT_TOKEN'){
+        if(a.key==='WHATSAPP_WEB_BRIDGE_TOKEN'||a.key==='ZAPI_INSTANCE_TOKEN'){
           await core.setting('check:whatsappWeb',{connected:false,at:Date.now()});
           await core.setting('check:whatsappWebReceived',null);
         }

@@ -10,6 +10,9 @@ async function fingerprint(){const values=await Promise.all(['ZAPI_INSTANCE_ID',
 export async function webhookConfigured(){const saved=await core.getSetting('zapi:webhooks');return !!saved?.ok&&saved.fingerprint===await fingerprint();}
 export async function call(path:string,method:'GET'|'PUT'|'POST'='GET',body?:Record<string,unknown>){
  const [id,token,clientToken]=await Promise.all([instanceId(),core.secret('ZAPI_INSTANCE_TOKEN'),core.secret('ZAPI_CLIENT_TOKEN')]);
+ return callWithCredentials({id,token,clientToken},path,method,body);
+}
+async function callWithCredentials({id,token,clientToken}:{id:string;token:string;clientToken:string},path:string,method:'GET'|'PUT'|'POST'='GET',body?:Record<string,unknown>){
  if(!id||!token)throw new Error('Configure o ID e o token da instância Z-API.');
  if(!clientToken)throw new Error('Adicione o Client-Token, o token de segurança da conta Z-API.');
  if(!/^[A-Za-z0-9_-]{8,200}$/.test(id)||!path.startsWith('/')||path.startsWith('//'))throw new Error('Configuração da instância inválida.');
@@ -24,6 +27,36 @@ export async function call(path:string,method:'GET'|'PUT'|'POST'='GET',body?:Rec
  const statusDetail=path==='/status'&&typeof result?.connected==='boolean'&&typeof result?.error==='string'&&/^You (?:are already connected|are not connected|need to restore the session)\.?$/i.test(result.error.trim());
  if(result?.error&&!statusDetail)throw new Error('A Z-API não confirmou a operação. Confira as credenciais, a assinatura e a conexão da instância.');
  return result;
+}
+export class ClientTokenUpdateError extends Error{
+ status:number;
+ constructor(message:string,status=400){super(message);this.status=status;}
+}
+/** Test the candidate in isolation; a rejected credential never replaces the live secret. */
+export async function updateClientToken(value:string){
+ const clientToken=value.trim();
+ if(clientToken.length<8||clientToken.length>4000||/[\r\n]/.test(clientToken))throw new ClientTokenUpdateError('Informe um Client-Token válido. A credencial anterior foi preservada.');
+ const lease='zapi:clientTokenUpdate',owner=crypto.randomUUID(),now=Date.now();
+ const claimed=await core.run("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE COALESCE(CAST(json_extract(settings.value,'$.expires') AS INTEGER),0)<?",lease,JSON.stringify({owner,expires:now+60000}),now);
+ if(!claimed.meta.changes)throw new ClientTokenUpdateError('Há uma atualização do Client-Token em andamento. Aguarde a conclusão.',409);
+ try{
+  const [id,token]=await Promise.all([instanceId(),core.secret('ZAPI_INSTANCE_TOKEN')]);
+  let checked:any;
+  try{checked=await callWithCredentials({id,token,clientToken},'/status');if(typeof checked?.connected!=='boolean')throw new Error('INVALID_STATUS');}
+  catch{throw new ClientTokenUpdateError('A nova credencial não foi validada pela Z-API. Confira o Client-Token e a conexão e tente novamente. A credencial anterior foi preservada.');}
+  if(id!==await instanceId()||token!==await core.secret('ZAPI_INSTANCE_TOKEN'))throw new ClientTokenUpdateError('A instância foi alterada durante a validação. Atualize a página e tente novamente.',409);
+  // Existing encryption is applied before the single secret write. No config,
+  // session, received-message proof or explicit pause is cleared by rotation.
+  await core.saveSecret('ZAPI_CLIENT_TOKEN',clientToken);
+  const state=checked.connected?'connected':'offline';
+  await recordZapiConnection(state,id,'',false,{preservePause:true});
+  const cfg=await core.config(),paused=!!await core.getSetting('ceci:manualPause');
+  const ready=await webhookConfigured(),startup=await core.getSetting('zapi:startupError');
+  const {ceciAutomationReadiness}=await import('./ceci-activation'),automation=await ceciAutomationReadiness(cfg);
+  const active=checked.connected&&ready&&!startup&&cfg.enabled&&!paused&&automation.ready;
+  const warning=!checked.connected?'Client-Token validado e salvo. O aparelho está desconectado; conecte o WhatsApp para retomar o canal.':!ready||startup?'Client-Token validado e salvo. A configuração do recebimento está pendente e será tentada novamente ao verificar a conexão.':!paused&&(!cfg.enabled||!automation.ready)?'Client-Token validado e salvo. A retomada da Ceci aguarda as demais configurações de atendimento.':undefined;
+  return {ok:true,validated:true,connected:checked.connected,ceciActive:!!active,...(warning?{warning}:{}),message:paused?'Client-Token validado e salvo. A pausa manual da Ceci foi mantida.':active?'Client-Token validado e salvo. Canal disponível e Ceci ativa.':'Client-Token validado e salvo.'};
+ }finally{await core.run("DELETE FROM settings WHERE key=? AND json_extract(value,'$.owner')=?",lease,owner);}
 }
 export async function callbackUrl(){
  const url=new URL(core.runtime.ZAPI_WEBHOOK_URL||'https://center-cell-atendimento.fredborrasca.chatgpt.site/api/z-api/events');

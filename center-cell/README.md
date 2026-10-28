@@ -4,11 +4,19 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 90.
-- Commit de origem: `f9f64cf8b91ae8a9a7b403727a320574200a571c`.
+- Sites: versão 91.
+- Commit de origem: `2ca196ad490257f18282c86682ccf98083873a02`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Atualizar Client-Token sem desligar a Ceci
+
+A versão 91 aplica tratamento específico à troca do Client-Token. Valida o candidato no status da Z-API antes de substituir o segredo, cifra com a proteção existente e prepara o canal com a nova credencial. Uma credencial recusada, resposta inválida ou falha de rede mantém o valor anterior e a ativação da Ceci. A troca não solicita QR, desconecta o aparelho, limpa o recebimento validado ou pausa a agente. Uma pausa manual é preservada também nas verificações seguintes e na recuperação de callbacks. Atualizações simultâneas são serializadas.
+
+O modal usa Validar e salvar, indica a validação e informa o resultado correto. Aparelho realmente offline ou callback ainda pendente têm aviso específico. A recuperação usa as verificações existentes, sem criar fila de mensagens ou mudar o comportamento das outras credenciais.
+
+O comportamento anterior foi reproduzido no teste: gravava uma credencial inválida sem validação e desligava o atendimento. Os testes corrigidos passaram na rota de origem e na rota compilada, cobrindo validação, cifra, preservação da ativação/pausa, recuperação parcial, concorrência e acesso. HTTP simulado e D1 isolado; nenhum token real foi alterado pelos testes.
 
 ## Aceite natural e conclusão do teste automático
 

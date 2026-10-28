@@ -1,6 +1,6 @@
 {
-  "version": 90,
-  "sourceCommit": "f9f64cf8b91ae8a9a7b403727a320574200a571c",
-  "release": "corrigir-aceite-natural-e-loop-da-atendente-simulada",
-  "date": "2026-10-27"
+  "version": 91,
+  "sourceCommit": "2ca196ad490257f18282c86682ccf98083873a02",
+  "release": "validar-client-token-sem-desligar-ceci",
+  "date": "2026-10-28"
 }
