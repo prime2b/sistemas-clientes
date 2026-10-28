@@ -10,7 +10,8 @@ export class WhatsAppPairingRequests{
  private fetcher:typeof fetch;
  private timeoutMs:number;
  private now:()=>number;
- constructor(fetcher:typeof fetch=fetch,timeoutMs=28000,now:()=>number=Date.now){this.fetcher=fetcher;this.timeoutMs=timeoutMs;this.now=now;}
+ // Native browser fetch requires its Window receiver, not this controller.
+ constructor(fetcher:typeof fetch=(input,init)=>globalThis.fetch(input,init),timeoutMs=28000,now:()=>number=Date.now){this.fetcher=fetcher;this.timeoutMs=timeoutMs;this.now=now;}
  cancel(){this.generation++;for(const controller of this.controllers)controller.abort();this.controllers.clear();this.actionRunning=false;}
  async run(action?:PairingAction):Promise<PairingStatus|undefined>{
   if(this.actionRunning)return;

@@ -33,7 +33,9 @@ A resposta de pareamento entrega o QR sem aguardar a preparação dos callbacks,
 
 A tela limita cada solicitação a 28 segundos, incluindo a leitura da resposta, e libera a tentativa seguinte com erro visível quando o tempo termina. Ações de pareamento cancelam consultas antigas, evitando que uma recusa do token anterior ou um status atrasado substitua o QR novo. O contador usa a validade restante informada pelo servidor em relação ao relógio local, e consultas de status não renovam a validade do mesmo QR. Após salvar um Client-Token validado com aparelho desconectado, o painel aberto solicita um QR automaticamente; a volta posterior à página apenas consulta o estado, sem repetir essa ação.
 
-`tests/whatsapp-pairing-runtime.mjs` cobre ordem de respostas, consultas obsoletas, cancelamento, espera limitada e contagem relativa. `tests/zapi-runtime.mjs` verifica que a rota retorna o QR enquanto a preparação de eventos ainda está bloqueada em uma fixture, e pode usar a rota compilada com `ZAPI_PAIR_COMPILED=1`.
+O controlador chama o `fetch` nativo com seu contexto global preservado. Isso evita `Illegal invocation` no navegador tanto na consulta de status quanto na geração do QR, antes mesmo de o pedido chegar ao servidor.
+
+`tests/whatsapp-pairing-runtime.mjs` cobre o contexto exigido pelo `fetch` do navegador, ordem de respostas, consultas obsoletas, cancelamento, espera limitada e contagem relativa. `tests/zapi-runtime.mjs` verifica que a rota retorna o QR enquanto a preparação de eventos ainda está bloqueada em uma fixture, e pode usar a rota compilada com `ZAPI_PAIR_COMPILED=1`.
 
 ## Atendimento
 

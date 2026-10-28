@@ -4,11 +4,17 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 92.
-- Commit de origem: `828aecbd82cbb7916c72885fae6d21d3af879853`.
+- Sites: versão 93.
+- Commit de origem: `ec941341e7dcb401a742fbfdef686da54cdc8684`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Contexto do fetch no navegador
+
+A versão 93 corrige `Failed to execute 'fetch' on 'Window': Illegal invocation` no controlador de pareamento. O transporte padrão preserva o contexto global exigido pelo navegador para consultas de status e geração do QR. Token, configurações e interface foram preservados.
+
+O teste reproduziu o erro exato na versão anterior com uma fixture que exige o receptor global e passou após a correção. Os testes de concorrência, validade, cancelamento e timeout também passaram, assim como TypeScript e o build completo. A exibição do QR da instância real permanece dependente da validação no navegador autenticado.
 
 ## QR após a troca do Client-Token
 

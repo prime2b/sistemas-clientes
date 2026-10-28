@@ -2,6 +2,20 @@ import assert from 'node:assert/strict';
 import {WhatsAppPairingRequests,mergePairingStatus} from '../lib/whatsapp-pairing.ts';
 const qr={state:'qr',qr:'data:image/png;base64,fixture',expiresAt:9999999999999,expiresInMs:20000};
 const pending=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+// Browser fetch performs a Window brand check; arrow-function fixtures do not.
+const originalFetch=globalThis.fetch,browserCalls=[];
+try{
+ globalThis.fetch=function(input,init){
+  if(this!==globalThis)throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+  browserCalls.push({input,init});return Promise.resolve(Response.json(init?.method==='POST'?qr:{state:'offline'}));
+ };
+ const browserClient=new WhatsAppPairingRequests();
+ assert.equal((await browserClient.run()).state,'offline');
+ assert.equal((await browserClient.run('connect')).state,'qr');
+ assert.equal(browserCalls.length,2);assert.ok(browserCalls.every(({input,init})=>input==='/api/whatsapp-web'&&init.signal instanceof AbortSignal));
+ assert.equal(JSON.parse(browserCalls[1].init.body).action,'connect');
+}finally{globalThis.fetch=originalFetch;}
+console.log('PASS browser fetch context: default status and QR requests retain the Window receiver and send the expected request');
 const old=pending();let calls=0;
 const client=new WhatsAppPairingRequests(async(_,init)=>{calls++;return init.method==='POST'?Response.json(qr):old.promise;},100,()=>10000);
 const stale=client.run(),fresh=await client.run('connect');assert.equal(fresh.state,'qr');assert.equal(fresh.expiresAt,30000,'server/device clock differences cannot immediately expire a fresh QR');assert.equal(await stale,undefined,'obsolete credential/status polls are canceled');

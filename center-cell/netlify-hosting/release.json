@@ -1,6 +1,6 @@
 {
-  "version": 92,
-  "sourceCommit": "828aecbd82cbb7916c72885fae6d21d3af879853",
-  "release": "corrigir-pareamento-qr-apos-troca-de-token",
+  "version": 93,
+  "sourceCommit": "ec941341e7dcb401a742fbfdef686da54cdc8684",
+  "release": "corrigir-contexto-fetch-do-pareamento",
   "date": "2026-10-28"
 }
