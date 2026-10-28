@@ -1,6 +1,7 @@
 import {parseChatCard} from './chat-cards.ts';
 import {confirmsPurchase} from './ceci-purchase.ts';
 import {selectAttendantIndex} from './attendant-routing.ts';
+import {manualClosing} from './playground-manual.ts';
 type Row=Record<string,any>;
 export type SimulatedAttendant={slot:number;name:string;avatar:string;available:boolean;load:number};
 export type SaleStep='claim'|'selection'|'quote'|'quote_acceptance'|'model_query'|'catalog_refresh'|'delivery'|'payment'|'confirmation'|'ready'|'completed'|'queued';
@@ -105,12 +106,17 @@ export function applySaleCustomer(sale:SimulatedSale,message:Row,previousAgent:s
  }
  const invitation=/(?:posso|podemos|confirma|confirmar).{0,60}(?:concluir|fechar|finalizar|combinad)/.test(fold(previousAgent));
  const acknowledgment=/^(?:(?:sim|isso|ok|certo|ta certo|tudo certo|combinado|confirmo)[,.!\s]*)+$/.test(text);
- if(sale.step==='confirmation'&&(confirmsPurchase(String(message.body).replace(/\bassim\b/gi,''),previousAgent,sale.quote.items)||invitation&&acknowledgment)){
+ const naturalClosing=sale.mode==='manual'&&sale.quote?.status==='approved'&&!!sale.quoteMessageId&&!!sale.consentMessageId&&!!sale.delivery&&!!sale.payment&&manualClosing(previousAgent)&&!/[?\d]|\b(?:se|caso|quando|depende|codigo|unidades?|pecas?|quero|preciso)\b/.test(text)&&/\b(?:sim|isso|confirmo|combinado|certo|ok|obrigad[ao]|valeu|ate|vou buscar|vou retirar|passo ai)\b/.test(text);
+ if(sale.step==='confirmation'&&(confirmsPurchase(String(message.body).replace(/\bassim\b/gi,''),previousAgent,sale.quote?.items)||invitation&&acknowledgment||naturalClosing)){
   sale.confirmationMessageId=message.id;sale.step='ready';return true;
  }
  return false;
 }
-export function canCompleteSale(sale:SimulatedSale){return sale.step==='ready'&&!!sale.acceptedAt&&!!sale.assignedSlot&&!!sale.delivery&&!!sale.payment&&!!sale.confirmationMessageId;}
+export function canCompleteSale(sale:SimulatedSale){
+ if(sale.step!=='ready'||!sale.acceptedAt||!sale.assignedSlot||!sale.delivery||!sale.payment||!sale.confirmationMessageId)return false;
+ if(!sale.shared)return true;const quote=parseChatCard(JSON.stringify(sale.quote));
+ return !!quote&&quote.type==='quote'&&validQuote(quote)&&quote.status==='approved'&&!!sale.quoteMessageId&&!!sale.consentMessageId;
+}
 export const simulatedClosing=(sale:SimulatedSale)=>`Tudo certo! Combinamos ${sale.delivery==='retirada'?'retirada na loja':'a entrega'} e pagamento ${sale.payment==='pix'?'por Pix':'no cartão'}. Obrigada pela compra!`;
 export function saleCriteria(sale:SimulatedSale|null|undefined,log:Row[],expectQueue=false){
  const check=(id:string,label:string,ok:boolean,detail:string,ids:string[]=[])=>({id,label,status:ok?'pass' as const:'fail' as const,critical:true,detail,messageIds:ids});

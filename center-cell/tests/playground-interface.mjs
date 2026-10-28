@@ -37,6 +37,9 @@ const {default:SharedCentral}=await import('../app/playground/shared-central-pre
 const shared=renderToStaticMarkup(createElement(SharedCentral,{sale:{...received,shared:true,step:'claim',assignedSlot:null,acceptedAt:0,quote:null,catalog:[]},messages:[],busy:false,active:true,onAction:async()=>{}}));
 assert.match(shared,/Central de atendimento/);assert.match(shared,/Assumir atendimento/);assert.match(shared,/Não atribuídas/);assert.ok(!shared.includes('Selecionar painel da atendente'));assert.equal((shared.match(/aria-label="Central compartilhada simulada"/g)||[]).length,1);
 console.log('PASS shared central UI: one inbox, operator identity, shared waiting conversation, explicit claim and no individual panels');
+const quoteStage=renderToStaticMarkup(createElement(SharedCentral,{sale:{...received,shared:true,mode:'manual',step:'quote',assignedSlot:1,quote:null,quoteMessageId:'',consentMessageId:'',selection:[{productId:1,quantity:2}]},messages:[],busy:false,active:true,onAction:async()=>{}}));
+assert.match(quoteStage,/Próximo passo: consulte e envie o orçamento/);assert.match(quoteStage,/Consultar e enviar orçamento/);assert.match(quoteStage,/> Enviar</);assert.ok(!/aria-label="Resposta da atendente na central"[^>]*disabled/.test(quoteStage),'operator can keep talking while the quote action remains available');
+console.log('PASS manual UI: quote guidance and action remain visible alongside an enabled conversation composer');
 
 const {InboxView}=await import('../app/inbox-view.tsx');
 const noop=()=>{},contact={id:'fixture-conversation',name:'Cliente',phone:'5517999990000',channel:'whatsapp_web',status:'human',assigned:'',profile:'lojista',notes:'',updated:Date.now(),unreadCount:2,canRespond:false};

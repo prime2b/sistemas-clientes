@@ -1,6 +1,6 @@
 {
-  "version": 84,
-  "sourceCommit": "b6cd4b5239f90341b35eb8337494afde66984172",
-  "release": "corrigir-selecao-rotinas-automaticas",
+  "version": 85,
+  "sourceCommit": "a5d722435c99bbbc0a1fb8c7c78eed3a1fe79bba",
+  "release": "cliente-simulado-manual-contextual",
   "date": "2026-10-27"
 }

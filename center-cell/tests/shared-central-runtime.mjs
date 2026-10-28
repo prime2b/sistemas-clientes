@@ -26,7 +26,12 @@ globalThis.fetch=async(input,init)=>{const url=new URL(String(input));
   if(p.instructions.startsWith('Você avalia')){const log=JSON.parse(p.input).messages;return output({result:'pass',summary:'Consulta curta e atendimento concluído pela equipe.',findings:['naturalidade','clareza','contexto','repeticao','conducao'].map(criterion=>({criterion,result:'pass',detail:'Fluxo curto e contexto preservado.',messageIds:[log.at(-1).id]}))});}
   if(p.instructions.includes('na continuação com uma atendente humana')){
    const input=JSON.parse(p.input),phase=input.phase;let message,expectedProductId=null,expectedQuantity=null;
-   if(phase==='selection'){const list=input.messages.findLast(m=>m.body.includes('OPÇÕES '));assert.ok(list,'human customer must see catalog options');const row=JSON.parse(list.body.split(': ').at(-1)).find(r=>r[4]);expectedProductId=row[1];expectedQuantity=2;message='Quero 2 unidades do código '+row[1]+'.';}
+   if(input.manualContext&&input.manualContext.focus!=='selection'){
+    const c=input.manualContext;
+    if(c.focus==='closing'){const id=c.selection[0]?.productId;return output({message:id?'Confirmo o código '+id+', duas unidades. Prefiro retirar na loja e pagar por Pix.':'Certo.'});}
+    return output({message:c.missing==='quote'?'Pode me enviar o orçamento para conferir?':c.missing==='quote_acceptance'?'Estou de acordo, pode finalizar a compra.':'Combinado, vou buscar na loja. Obrigada!'});
+   }
+   if(phase==='selection'){const list=input.messages.findLast(m=>m.body.includes('OPÇÕES '));assert.ok(list,'human customer must see catalog options');const row=JSON.parse(list.body.split(': ').at(-1)).find(r=>r[4]);expectedProductId=row[1];expectedQuantity=2;message='Quero 2 unidades do código '+row[1]+'.'+(input.manualContext?' Prefiro retirar na loja e pagar por Pix.':'');}
    else if(phase==='quote_acceptance'&&p.instructions.includes('Agora peça a alteração')){const qty=p.instructions.includes('Agora peça a alteração para 3')?3:2;const q=input.messages.findLast(m=>m.body.includes('ORÇAMENTO '));expectedProductId=JSON.parse(q.body.split('ORÇAMENTO ')[1]).items[0][0];expectedQuantity=qty;message='Pode alterar para '+qty+' unidades do código '+expectedProductId+'.';}
    else if(phase==='quote_acceptance'){const q=input.messages.findLast(m=>m.body.includes('ORÇAMENTO ')),id=JSON.parse(q.body.split('ORÇAMENTO ')[1]).items[0][0];message=compoundConsent?'Código '+id+', duas unidades. Pode finalizar a compra; prefiro retirar na loja e pagar por Pix.':'Pode finalizar a compra das 2 unidades.';}
    else if(phase==='model_query')message='Agora preciso de '+p.instructions.match(/segundo modelo (.*?), sem aceitar/)[1]+'.';
@@ -109,4 +114,14 @@ if(process.env.CENTRAL_COMPILED==='1'){
  let done;for(let n=0;n<55;n++){const d=await compiledPost({action:'tick',id});if(d.run.state==='completed'){done=d.run;break;}}
  assert.ok(done);assert.equal(done.cases[0].result,'passed',JSON.stringify(done.cases[0]));assert.equal(done.cases[0].sale.step,'completed');assert.ok(done.cases[0].sale.shared);assert.ok(done.cases[0].criteria.filter(c=>c.critical).every(c=>['pass','na'].includes(c.status)));
  console.log('PASS compiled production handler: shared natural conversation from greeting through catalog, shared claim, human quote, consent and completed sale');
+ const manualId=crypto.randomUUID(),manualStart=await compiledPost({action:'start',...args('quote',true),id:manualId});naturalProduct=manualStart.run.cases[0].scenarioSnapshot.productContext;
+ let manualRun=manualStart.run;for(let n=0;n<30&&!manualRun.cases[0].sale;n++)manualRun=(await compiledPost({action:'tick',id:manualId})).run;assert.ok(manualRun.cases[0].sale);
+ async function manualAction(operation,body){manualRun=(await compiledPost({action:'attendant',id:manualId,operation,slot:1,revision:manualRun.cases[0].sale.revision,...(body?{body}:{})})).run;}
+ async function manualTick(){manualRun=(await compiledPost({action:'tick',id:manualId})).run;}
+ await manualAction('assume');await manualAction('reply','conseguiu escolher qual deseja?');await manualTick();assert.equal(manualRun.cases[0].sale.step,'quote');
+ await manualAction('reply','perfeito, já vou deixar separado aqui para vc vir buscar..');await manualTick();assert.equal(manualRun.cases[0].sale.step,'quote');assert.match(manualRun.messages.at(-1).body,/orçamento/);
+ await manualAction('quote');await manualTick();assert.equal(manualRun.cases[0].sale.step,'confirmation');
+ await manualAction('reply','perfeito, entendido, já separei as 2 unidades do produto escolhido, pode vir buscar');await manualTick();assert.equal(manualRun.cases[0].sale.step,'ready');
+ await manualAction('complete');await manualTick();assert.equal(manualRun.state,'completed');assert.equal(manualRun.cases[0].result,'passed',JSON.stringify(manualRun.cases[0]));assert.equal(manualRun.cases[0].sale.quoteVersions,1);assert.equal(manualRun.cases[0].sale.step,'completed');
+ console.log('PASS compiled manual handler: custom operator messages from the screenshots, contextual customer, required quote, natural thanks and explicit sale completion');
 }

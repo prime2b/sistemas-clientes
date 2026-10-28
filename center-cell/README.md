@@ -4,11 +4,19 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 84.
-- Commit de origem: `b6cd4b5239f90341b35eb8337494afde66984172`.
+- Sites: versão 85.
+- Commit de origem: `a5d722435c99bbbc0a1fb8c7c78eed3a1fe79bba`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Atendimento manual contextual no playground
+
+A versão 85 faz o cliente simulado responder à última fala da operadora, sem repetir a escolha por estar preso a uma etapa fixa. As frases de separação e retirada dos prints recebem reconhecimento natural. Quando falta orçamento, o cliente pede para conferi-lo; a confirmação de separação não aprova uma venda. A operadora continua com o campo de conversa disponível e o próximo passo visível. Após orçamento aceito e condições combinadas, uma confirmação natural de retirada/agradecimento libera Concluir venda simulada.
+
+O executor não aplica o reparo automático de escolha às falas conversacionais manuais. Repetições geradas do mesmo código são tratadas antes de criar outra mensagem; dados já salvos permanecem preservados. Perguntas, recusas, condições, mudança de quantidade e orçamento ausente continuam impedindo conclusão. O limite manual é de 30 respostas, mantendo os limites de tempo/tokens existentes.
+
+Os textos dos prints e o caminho manual completo passaram em testes isolados e nas rotas compiladas, assim como as rotinas automáticas. Sem envio ao WhatsApp, cobrança, venda no ERP ou mudança das configurações de produção nos testes. Veja [o guia](docs/playground-vendas.md).
 
 ## Rotinas automáticas: escolha até a venda simulada
 
