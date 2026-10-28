@@ -4,11 +4,19 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 85.
-- Commit de origem: `a5d722435c99bbbc0a1fb8c7c78eed3a1fe79bba`.
+- Sites: versão 86.
+- Commit de origem: `2982edd0a2f30b50985997971a6f2984636f08cb`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Status da Ceci e das integrações
+
+A versão 86 reconcilia a validação da Ceci a partir das respostas efetivamente publicadas no playground e das chamadas concluídas ao modelo, com a configuração/chave atuais. Testes antigos compatíveis são reconhecidos sem nova chamada de IA; novas respostas registram a validação ao serem publicadas. O histórico e as aprovações dos cenários são preservados.
+
+O contador 0/3 a 3/3 usa conexões comprovadas de MercadoPhone, OpenAI e WhatsApp. Recebimento externo, sincronização e homologação do modelo de produção ficam separados da contagem de conexões. Um teste econômico confirma a conexão/resposta de Luna sem presumir acesso a outro modelo de produção. O menu informa Validada e o escopo da evidência. Credenciais, pausa manual e ativação de produção não são alteradas pela reconciliação.
+
+Testes isolados e fluxos compilados verificaram recuperação, assinatura atual, medidor compartilhado do lote, 3/3 com recebimento pendente, invalidação de chave/configuração e preservação da pausa. Veja [a definição dos estados](docs/status-validacao.md).
 
 ## Atendimento manual contextual no playground
 

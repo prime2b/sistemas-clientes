@@ -1,5 +1,7 @@
 import * as core from './core';
 import * as zapi from './zapi';
+import {reconcilePlaygroundValidation} from './playground-validation';
+import {TEST_MODEL} from '../playground-economy';
 import {probeConnection, summarizeReadiness, type Service} from './integration-probes';
 
 export async function signature(service: Service | 'internal', cfg: Record<string,any>) {
@@ -20,6 +22,7 @@ export async function testConnection(service: Service) {
 }
 
 export async function integrationStatus(cfg: Record<string,any>) {
+  try{await reconcilePlaygroundValidation(cfg);}catch{console.warn('playground_validation_reconcile_pending');}
   const checks: Record<string,any> = {};
   for (const service of ['openai','whatsapp','internal'] as const) {
     const saved = await core.getSetting('check:'+service);
@@ -38,7 +41,11 @@ export async function integrationStatus(cfg: Record<string,any>) {
   const webCheck=await zapi.connection();
   const webReceived=await zapi.received();
   const webConfigured=await zapi.credentialsReady()&&await zapi.webhookConfigured();
-  return {checks, ...summarizeReadiness([
+  const modelChecks=await Promise.all([...new Set([cfg.model,TEST_MODEL])].map(async model=>{const saved=await core.getSetting('check:playgroundModel:'+model);return {model,...saved,ok:!!saved?.ok&&saved.fingerprint===await signature('openai',{...cfg,model})};}));
+  const economic=await core.getSetting('check:playgroundInternal'),economicValid=!!economic?.ok&&economic.fingerprint===await signature('internal',cfg);
+  const agent={validated:!!checks.internal?.ok||economicValid,productionValidated:!!checks.internal?.ok,model:checks.internal?.ok?cfg.model:economicValid?economic.model||TEST_MODEL:null,mode:checks.internal?.ok?'production':economicValid?'economic':null,at:checks.internal?.ok?checks.internal.at:economicValid?economic.at:null};
+  const connections={mercadophone:{connected:!!erp&&!!await core.secret('MERCADOPHONE_API_KEY')},openai:{connected:!!await core.secret('OPENAI_API_KEY')&&(!!checks.openai?.ok||modelChecks.some(c=>c.ok)),models:modelChecks.filter(c=>c.ok).map(c=>c.model)},whatsapp:{connected:webMode?!!await zapi.credentialsReady()&&!!webCheck?.connected:credentials&&!!checks.whatsapp?.ok}};
+  return {checks,agent,connections, ...summarizeReadiness([
     {id:'erp',label:'Conexão com o MercadoPhone',done:!!erp && !!await core.secret('MERCADOPHONE_API_KEY'),detail:erp?'Consulta ao ERP validada.':'Teste a conexão com o ERP.',page:'integrations'},
     {id:'catalog',label:'Catálogo sincronizado',done:!!sync?.complete && Number(catalog?.count)>0,detail:sync?.complete?`${catalog?.count || 0} produtos no catálogo.`:'Conclua a sincronização dos produtos.',page:'catalog'},
     {id:'openai',label:'Acesso ao modelo de IA',done:!!checks.openai?.ok,detail:checks.openai?.message || 'Adicione a chave e teste o acesso ao modelo.',page:'integrations'},

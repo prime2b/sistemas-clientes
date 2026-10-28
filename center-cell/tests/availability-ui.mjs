@@ -15,3 +15,7 @@ assert.equal(ceciAvailability(live).label,'Ativa');assert.equal(integrationView(
 assert.equal(ceciAvailability({...live,ceciReply:{state:'retryable'}}).label,'Ativa');
 assert.equal(ceciAvailability(null).label,'Carregando');
 console.log('PASS: validated agent stays ready offline; connection counts use 3 services, not 6 production steps');
+const evidence={...data,activation:{...data.activation,agent:{validated:true,productionValidated:false,mode:'economic',model:'gpt-5.6-luna'},connections:{mercadophone:{connected:true},openai:{connected:true},whatsapp:{connected:true}},steps:steps.map(s=>({...s,done:['erp','catalog'].includes(s.id)}))}};
+assert.equal(ceciAvailability(evidence).label,'Validada');assert.match(ceciAvailability(evidence).detail,/econômico/);assert.equal(integrationView(evidence).connections.label,'3/3');assert.equal(integrationView(evidence).connections.pending,0);assert.equal(integrationView(evidence).ready,false,'receiving/production-model checks remain distinct from actual connections');assert.equal(integrationView(evidence).statuses.whatsapp.label,'Conectado');
+assert.equal(integrationView({...evidence,activation:{...evidence.activation,connections:{...evidence.activation.connections,whatsapp:{connected:false}}}}).connections.label,'2/3');
+console.log('PASS reported status: completed economic validation clears the Ceci badge and three actual connections count 3/3 even while production preparation is separate');
