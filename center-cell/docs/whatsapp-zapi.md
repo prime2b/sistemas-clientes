@@ -29,6 +29,12 @@ Variáveis de runtime, nunca no Git ou no manifesto:
 
 O QR expira em 20 segundos. A tela renova após 15 segundos, até três solicitações; depois exige interação. Se a instância já estiver conectada, a tela apresenta o estado conectado. Verificações adicionais exigidas pelo WhatsApp são encaminhadas à alternativa oficial da Z-API.
 
+A resposta de pareamento entrega o QR sem aguardar a preparação dos callbacks, que continua em segundo plano na mesma solicitação do servidor. A confirmação de conexão continua preparando o recebimento antes de ativar a Ceci. Uma falha de preparação não descarta um QR real já obtido; a interface informa a pendência.
+
+A tela limita cada solicitação a 28 segundos, incluindo a leitura da resposta, e libera a tentativa seguinte com erro visível quando o tempo termina. Ações de pareamento cancelam consultas antigas, evitando que uma recusa do token anterior ou um status atrasado substitua o QR novo. O contador usa a validade restante informada pelo servidor em relação ao relógio local, e consultas de status não renovam a validade do mesmo QR. Após salvar um Client-Token validado com aparelho desconectado, o painel aberto solicita um QR automaticamente; a volta posterior à página apenas consulta o estado, sem repetir essa ação.
+
+`tests/whatsapp-pairing-runtime.mjs` cobre ordem de respostas, consultas obsoletas, cancelamento, espera limitada e contagem relativa. `tests/zapi-runtime.mjs` verifica que a rota retorna o QR enquanto a preparação de eventos ainda está bloqueada em uma fixture, e pode usar a rota compilada com `ZAPI_PAIR_COMPILED=1`.
+
 ## Atendimento
 
 Mensagens recebidas possuem identificação determinística e uma trava por contato. Repetições de webhook não criam outro atendimento ou resposta já confirmada. Ecos da API, mensagens próprias, grupos, newsletters, edições e mensagens ainda aguardando descriptografia são ignorados. Mídias seguem para atendimento humano. IDs privados `@lid` são aceitos sem tratá-los como telefone real; associações a telefones são feitas apenas quando fornecidas pelo provedor.

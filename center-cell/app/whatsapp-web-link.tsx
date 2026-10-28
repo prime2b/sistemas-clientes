@@ -5,26 +5,28 @@ import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {toast} from 'sonner';
 import {WhatsAppIcon} from './whatsapp-icon';
-type Status={state:string;qr?:string;phone?:string;error?:string;expiresAt?:number;webhookReady?:boolean;ceci?:{active:boolean;paused:boolean;blockers:string[]}};
-type Props={instanceId:string;tokenReady:boolean;clientTokenReady:boolean;webhookReady:boolean;busy:boolean;onSave:(id:string)=>Promise<void>;onToken:()=>void;onClientToken:()=>void;onRefresh:()=>Promise<void>;receivedAt?:number;connected?:boolean};
-export function WhatsAppWebLink({instanceId,tokenReady,clientTokenReady,webhookReady,busy,onSave,onToken,onClientToken,onRefresh,receivedAt}:Props){
+import {WhatsAppPairingRequests,mergePairingStatus,type PairingStatus as Status,type PairingAction} from '../lib/whatsapp-pairing';
+type Props={instanceId:string;tokenReady:boolean;clientTokenReady:boolean;webhookReady:boolean;busy:boolean;onSave:(id:string)=>Promise<void>;onToken:()=>void;onClientToken:()=>void;onRefresh:()=>Promise<void>;receivedAt?:number;connected?:boolean;pairingRequest?:number};
+export function WhatsAppWebLink({instanceId,tokenReady,clientTokenReady,webhookReady,busy,onSave,onToken,onClientToken,onRefresh,receivedAt,pairingRequest=0}:Props){
  const [draft,setDraft]=useState(instanceId),[status,setStatus]=useState<Status>({state:'unconfigured'}),[working,setWorking]=useState(false),[clock,setClock]=useState(Date.now());
- const mounted=useRef(true),inFlight=useRef(false),attempts=useRef(0),previous=useRef('');
+ const mounted=useRef(true),inFlight=useRef(false),attempts=useRef(0),previous=useRef(''),lastPairingRequest=useRef(pairingRequest),requests=useRef<WhatsAppPairingRequests|null>(null);
+ if(!requests.current)requests.current=new WhatsAppPairingRequests();
  const configured=!!instanceId&&tokenReady&&clientTokenReady,remaining=Math.max(0,Math.ceil(((status.expiresAt||0)-clock)/1000)),hasQr=!!status.qr&&remaining>0;
  useEffect(()=>setDraft(instanceId),[instanceId]);
- const read=useCallback(async()=>{try{const response=await fetch('/api/whatsapp-web',{cache:'no-store'}),next=await response.json() as Status;if(!mounted.current)return;setStatus(old=>next.state==='connected'||next.state==='unconfigured'||!response.ok?next:{...next,qr:old.qr,expiresAt:old.expiresAt});if(next.state==='connected'&&previous.current!=='connected'){attempts.current=0;void onRefresh();}previous.current=next.state;}catch{if(mounted.current)setStatus(old=>({...old,state:'error',error:'Não foi possível consultar a conexão.'}));}},[onRefresh]);
- useEffect(()=>{mounted.current=true;void read();const timer=setInterval(()=>{setClock(Date.now());if(document.visibilityState==='visible'&&!inFlight.current)void read();},10000);const clockTimer=setInterval(()=>setClock(Date.now()),1000);return()=>{mounted.current=false;clearInterval(timer);clearInterval(clockTimer)};},[instanceId,tokenReady,clientTokenReady]);
- const act=async(action:'connect'|'logout'|'webhooks'|'activate',automatic=false)=>{
+ const read=useCallback(async()=>{if(inFlight.current)return;try{const next=await requests.current!.run();if(!next||!mounted.current)return;setStatus(old=>mergePairingStatus(old,next));if(next.state==='connected'&&previous.current!=='connected'){attempts.current=0;void onRefresh();}previous.current=next.state;}catch(error){if(mounted.current)setStatus(old=>({...old,state:'error',error:(error as Error).message}));}},[onRefresh]);
+ useEffect(()=>{mounted.current=true;void read();const timer=setInterval(()=>{setClock(Date.now());if(document.visibilityState==='visible'&&!inFlight.current)void read();},10000);const clockTimer=setInterval(()=>setClock(Date.now()),1000);return()=>{mounted.current=false;requests.current?.cancel();inFlight.current=false;clearInterval(timer);clearInterval(clockTimer)};},[instanceId,tokenReady,clientTokenReady]);
+ const act=async(action:PairingAction,automatic=false)=>{
   if(inFlight.current||busy)return;
   if(action==='logout'&&!window.confirm('Desconectar este número da Z-API? Será preciso parear novamente para voltar a atender.'))return;
   if(action==='connect'){if(!automatic)attempts.current=0;attempts.current++;}
   inFlight.current=true;setWorking(true);
-  try{const response=await fetch('/api/whatsapp-web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})}),next=await response.json() as Status;if(!response.ok)throw new Error(next.error||'Não foi possível concluir a conexão.');if(!mounted.current)return;if(action==='webhooks'){setStatus(old=>({...old,error:undefined}));await read();}else setStatus(next);setClock(Date.now());await onRefresh();}
-  catch(e){if(mounted.current)setStatus(old=>({...old,error:(e as Error).message,qr:undefined,expiresAt:undefined}));}
-  finally{inFlight.current=false;if(mounted.current)setWorking(false);}
+  try{const next=await requests.current!.run(action);if(!next||!mounted.current)return;if(action==='webhooks'){setStatus(old=>({...old,error:undefined,warning:undefined}));}else setStatus(next);setClock(Date.now());void onRefresh();}
+  catch(e){if(mounted.current)setStatus(old=>({...old,state:'error',error:(e as Error).message,qr:undefined,expiresAt:undefined}));}
+  finally{inFlight.current=false;if(mounted.current){setWorking(false);if(action==='webhooks')void read();}}
  };
+ useEffect(()=>{if(!pairingRequest||pairingRequest===lastPairingRequest.current||!configured||busy||working)return;lastPairingRequest.current=pairingRequest;void act('connect');},[pairingRequest,configured,busy,working]);
  useEffect(()=>{if(!status.qr||!status.expiresAt||status.state==='connected'||status.error||attempts.current>=3)return;const timer=setTimeout(()=>{if(document.visibilityState==='visible')void act('connect',true);},Math.max(0,status.expiresAt-Date.now()-5000));return()=>clearTimeout(timer);},[status.qr,status.expiresAt,status.state,status.error]);
- const state=status.state==='connected'?'Conectado':hasQr?'Aguardando leitura':status.state==='challenge'?'Verificação adicional':!configured?'Configuração pendente':'Desconectado';
+ const state=status.state==='connected'?'Conectado':status.state==='error'?'Falha na conexão':hasQr?'Aguardando leitura':status.state==='challenge'?'Verificação adicional':!configured?'Configuração pendente':'Desconectado';
  const copyId=()=>void navigator.clipboard.writeText(instanceId).then(()=>toast.success('ID da instância copiado.')).catch(()=>toast.error('Não foi possível copiar o ID.'));
  return <div className="zi-workspace">
   <section className="zi-instance">
@@ -43,7 +45,7 @@ export function WhatsAppWebLink({instanceId,tokenReady,clientTokenReady,webhookR
     {status.state==='connected'?<div className="zi-connected"><span><Check size={54}/></span><strong>Conexão ativa</strong><p>{status.phone||'O aparelho está conectado.'}</p><small>Recebimento: {receivedAt?'validado':'aguardando primeira mensagem'}</small><strong>{status.ceci?.active?'Ceci ativa':status.ceci?.paused?'Ceci pausada':'Ceci aguardando ativação'}</strong><small>{status.ceci?.active?'Pronta para responder às novas mensagens.':status.ceci?.blockers?.[0]||'Ative a Ceci para iniciar o atendimento automático.'}</small>{!status.ceci?.active&&<Button disabled={working||busy} onClick={()=>void act('activate')}>Ativar Ceci</Button>}</div>:hasQr?<img src={status.qr} alt="QR Code real da Z-API para conectar o WhatsApp" width={440} height={440}/>:<div className="zi-qr-empty">{working?<Loader2 size={52} className="spin"/>:<QrCode size={70} strokeWidth={1.25}/>}<strong>{working?'Preparando a conexão…':!configured?'Configure as credenciais':'Pronto para conectar'}</strong><p>{working?'Aguarde o retorno da Z-API.':!clientTokenReady?'Adicione o Client-Token para gerar o código.':status.qr?'Este QR Code expirou. Gere outro para continuar.':'Gere um QR Code para vincular o aparelho.'}</p>{!clientTokenReady?<Button onClick={onClientToken}><KeyRound size={15}/>Adicionar Client-Token</Button>:<Button disabled={!configured||working||busy} onClick={()=>void act('connect')}><QrCode size={16}/>Gerar QR Code</Button>}</div>}
    </div>
    {hasQr&&<div className="zi-qr-expiry"><i style={{width:`${remaining/20*100}%`}}/><span>{attempts.current<3?'Atualiza':'Expira'} em {remaining}s · leitura {attempts.current} de 3</span></div>}
-   {status.error&&<div className="zi-error" role="alert">{status.error}</div>}
+   {status.error&&<div className="zi-error" role="alert">{status.error}</div>}{status.warning&&<p className="zi-qr-hint" role="status">{status.warning}</p>}
    <div className="zi-pair-actions">{status.state==='connected'?<Button variant="outline" disabled={working||busy} onClick={()=>void act('logout')}><Unplug size={15}/>Desconectar</Button>:configured&&<Button variant="outline" disabled={working||busy} onClick={()=>void act('connect')}><RefreshCw size={15} className={working?'spin':''}/>Atualizar QR Code</Button>}<button type="button" disabled={working} onClick={()=>void read()}><RefreshCw size={14}/>Verificar conexão</button></div>
    {status.state==='challenge'&&<a className="zi-alternative" href="https://developer.z-api.io/tips/extension-guide" target="_blank" rel="noreferrer">Ver alternativa oficial de conexão <ExternalLink size={14}/></a>}
    <p className="zi-qr-hint">O código expira por segurança. Após três gerações, clique em atualizar para continuar.</p>

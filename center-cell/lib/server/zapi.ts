@@ -78,13 +78,21 @@ export async function status(){const result=await call('/status');if(typeof resu
 export function qrView(result:any){
  const image=typeof result==='string'?result:result?.value||result?.qrcode||result?.qrCode;
  const value=typeof image==='string'?(image.startsWith('data:image/png;base64,')?image:'data:image/png;base64,'+image):'';
- if(value.length<300000&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value))return {state:'qr',qr:value,expiresAt:Date.now()+20000,provider:'zapi'};
+ if(value.length<300000&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value))return {state:'qr',qr:value,expiresAt:Date.now()+20000,expiresInMs:20000,provider:'zapi'};
  if(result?.challenge||result?.publicKey||result?.type==='challenge')return {state:'challenge',provider:'zapi',error:'Este aparelho exige uma verificação adicional. Conclua a conexão pelo painel ou pela extensão oficial da Z-API.'};
  throw new Error('A Z-API não retornou um QR Code válido. Atualize o código ou confira a instância.');
 }
 export async function armCeciOnConnect(){await core.setting('zapi:startOnConnect',{instanceId:await instanceId(),pending:true,at:Date.now()});}
 export async function cancelCeciOnConnect(){await core.setting('zapi:startOnConnect',{instanceId:await instanceId(),pending:false,at:Date.now()});}
-export async function connect(){await setup(true);await armCeciOnConnect();const current=await status();if(current.state==='connected')return current;return qrView(await call('/qr-code/image'));}
+export async function connect(deferPreparation?:(task:Promise<void>)=>void){
+ await armCeciOnConnect();const current=await status();if(current.state==='connected')return current;
+ const view=qrView(await call('/qr-code/image'));
+ if(view.state==='qr'){
+  const preparation=setup().catch(async()=>{await core.setting('zapi:startupError',{at:Date.now(),message:'A preparação do recebimento está pendente. Use Reparar recebimento para tentar novamente.'});console.warn('zapi_pairing_receiver_pending');});
+  if(deferPreparation)deferPreparation(preparation);else await preparation;
+ }
+ return view;
+}
 export async function disconnect(){await cancelCeciOnConnect();await core.setting('whatsapp:manualDisconnectAt',Date.now());await call('/disconnect');await recordZapiConnection('offline',await instanceId(),'',true);await core.setting('check:whatsappWebReceived',null);return {state:'offline',provider:'zapi'};}
 export async function send(phone:string,message:string){const number=phone.startsWith('lid:')?phone.slice(4)+'@lid':phone;if(!/^(?:\d{10,15}|\d{8,25}@lid)$/.test(number)||!message.trim())throw new Error('Mensagem ou destinatário WhatsApp inválido.');const result=await call('/send-text','POST',{phone:number,message});const id=String(result.messageId||result.id||'');if(!id||id.length>250)throw new Error('A Z-API não retornou a confirmação do envio. Confira o histórico antes de repetir.');return id;}
 export async function avatar(phone:string){const number=phone.startsWith('lid:')?phone.slice(4)+'@lid':phone;if(!/^(?:\d{10,15}|\d{8,25}@lid)$/.test(number))return '';const result=await call('/profile-picture?phone='+encodeURIComponent(number));return Array.isArray(result)?result[0]?.link:result.link||'';}

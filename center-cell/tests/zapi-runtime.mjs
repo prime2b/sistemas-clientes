@@ -14,8 +14,8 @@ class Statement{constructor(q,args=[]){this.q=q;this.args=args;}bind(...args){re
 const DB={prepare:q=>new Statement(q),batch:async ss=>{sql.exec('BEGIN');try{const out=[];for(const s of ss)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};
 const instance='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',phone='5517999990000';
 globalThis.__zapiTasks=[];globalThis.__zapiFixture={DB,ZAPI_INSTANCE_ID:instance,ZAPI_INSTANCE_TOKEN:'fixture-instance-token',ZAPI_CLIENT_TOKEN:'fixture-client-token',ZAPI_WEBHOOK_SECRET:'fixture-callback-secret',ZAPI_WEBHOOK_URL:'https://fixture.test/api/z-api/events',OPENAI_API_KEY:'fixture-ai-key',MERCADOPHONE_API_KEY:'fixture-erp-key'};
-const core=await import('../lib/server/core.ts'),zapi=await import('../lib/server/zapi.ts'),hooks=await import('../app/api/z-api/events/route.ts'),pair=await import('../app/api/whatsapp-web/route.ts'),auth=await import('../lib/server/app-auth.ts');
-let connected=false,calls=[],sends=[],modelCalls=0,modelInputs=[],statusOverride=null,statusHttp=200,qrFailure=false,webhookFailure=false;
+const core=await import('../lib/server/core.ts'),zapi=await import('../lib/server/zapi.ts'),hooks=await import('../app/api/z-api/events/route.ts'),pair=process.env.ZAPI_PAIR_COMPILED==='1'?await import(new URL('../dist/server/_next/static/'+readdirSync(new URL('../dist/server/_next/static/',import.meta.url)).find(name=>name.endsWith('.js')&&readFileSync(new URL('../dist/server/_next/static/'+name,import.meta.url),'utf8').includes('QR Code pronto. O recebimento está sendo preparado em segundo plano.')),import.meta.url)):await import('../app/api/whatsapp-web/route.ts'),auth=await import('../lib/server/app-auth.ts');
+let connected=false,calls=[],sends=[],modelCalls=0,modelInputs=[],statusOverride=null,statusHttp=200,qrFailure=false,webhookFailure=false,webhookGate=null;
 const destinations=new Map([['received-delivery','https://old.test/wrong-receiver']]);
 globalThis.fetch=async(input,init={})=>{
  const u=new URL(String(input));
@@ -23,7 +23,7 @@ globalThis.fetch=async(input,init={})=>{
   assert.equal(init.headers['Client-Token'],'fixture-client-token');assert.equal(init.redirect,'manual');
   assert.ok(u.pathname.startsWith('/instances/'+instance+'/token/fixture-instance-token/'));
   const path=u.pathname.split('/token/fixture-instance-token')[1];calls.push({path,method:init.method});
-  if(path.startsWith('/update-webhook-')){assert.equal(init.method,'PUT');const value=new URL(JSON.parse(init.body).value);assert.equal(value.origin,'https://fixture.test');assert.equal(value.pathname,'/api/z-api/events');assert.equal(value.searchParams.get('key'),globalThis.__zapiFixture.ZAPI_WEBHOOK_SECRET);if(webhookFailure)return Response.json({});destinations.set(path.slice('/update-webhook-'.length),value.href);return Response.json({value:true});}
+  if(path.startsWith('/update-webhook-')){if(webhookGate)await webhookGate;assert.equal(init.method,'PUT');const value=new URL(JSON.parse(init.body).value);assert.equal(value.origin,'https://fixture.test');assert.equal(value.pathname,'/api/z-api/events');assert.equal(value.searchParams.get('key'),globalThis.__zapiFixture.ZAPI_WEBHOOK_SECRET);if(webhookFailure)return Response.json({});destinations.set(path.slice('/update-webhook-'.length),value.href);return Response.json({value:true});}
   if(path==='/status')return Response.json(statusOverride||{connected,error:connected?'You are already connected.':'You are not connected.',smartphoneConnected:connected},{status:statusHttp});
   if(path==='/qr-code/image')return Response.json(qrFailure?{error:'You are not connected.'}:{value:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB'});
   if(path==='/disconnect'){connected=false;return Response.json({value:true});}
@@ -44,7 +44,7 @@ const token=await auth.createSession('fixture-owner');
 // Resolve the actual cookie constant without reimplementing auth.
 const cookieName=readFileSync(new URL('../lib/server/app-auth.ts',import.meta.url),'utf8').match(/const COOKIE\s*=\s*['"]([^'"]+)/)[1];
 const adminHeaders={cookie:cookieName+'='+token,'Content-Type':'application/json',origin:'https://fixture.test'};
-assert.equal((await pair.GET(new Request('https://fixture.test/api/whatsapp-web'))).status,403);
+assert.equal((await pair.GET(new Request('https://fixture.test/api/whatsapp-web',{headers:{cookie:''}}))).status,403);
 assert.equal((await pair.POST(new Request('https://fixture.test/api/whatsapp-web',{method:'POST',headers:{...adminHeaders,origin:'https://evil.test'},body:'{"action":"connect"}'}))).status,403);
 delete globalThis.__zapiFixture.ZAPI_CLIENT_TOKEN;const pending=await pair.GET(new Request('https://fixture.test/api/whatsapp-web',{headers:adminHeaders}));assert.equal((await pending.json()).state,'unconfigured');assert.equal(calls.length,0);globalThis.__zapiFixture.ZAPI_CLIENT_TOKEN='fixture-client-token';
 await core.setting('check:whatsappWeb',{connected:true,at:Date.now()});assert.equal(await zapi.connection(),null,'old provider cannot validate new connection');
@@ -75,6 +75,11 @@ qrFailure=true;await assert.rejects(zapi.connect(),/não confirmou a operação/
 console.log('PASS reported QR regression: documented informational status is accepted, HTTP status/QR routes work, real token failures and malformed states remain blocked');
 assert.equal(await zapi.avatar(phone),'https://pps.whatsapp.net/fixture.jpg');
 console.log('PASS pairing: auth, CSRF, required Client-Token, five authenticated webhooks, real QR lifecycle, challenge, connected shortcut and profile picture');
+connected=false;await core.setting('zapi:webhooks',null);await core.setting('check:whatsappWeb',null);let releaseHooks;webhookGate=new Promise(resolve=>releaseHooks=resolve);
+let deadline;const request=pair.POST(new Request('https://fixture.test/api/whatsapp-web',{method:'POST',headers:adminHeaders,body:'{"action":"connect"}'}));
+const immediate=await Promise.race([request,new Promise((_,reject)=>deadline=setTimeout(()=>reject(new Error('QR was blocked by callback setup')),300))]);clearTimeout(deadline);const immediateQR=await immediate.json();assert.equal(immediate.status,200);assert.equal(immediateQR.state,'qr');assert.ok(immediateQR.qr);assert.ok(immediateQR.expiresInMs>0&&immediateQR.expiresInMs<=20000);assert.match(immediateQR.warning,/segundo plano/);assert.equal(await zapi.webhookConfigured(),false);releaseHooks();webhookGate=null;await Promise.all(globalThis.__zapiTasks.splice(0));assert.equal(await zapi.webhookConfigured(),true);connected=true;
+console.log('PASS reported pairing regression: QR response is returned while webhook preparation is still pending, then background setup completes; relative validity is delivered to the client');
+
 const received=(extra={})=>({type:'ReceivedCallback',instanceId:instance,messageId:crypto.randomUUID(),phone,fromMe:false,fromApi:false,isGroup:false,senderName:'Cliente fixture',text:{message:'Oi'},senderPhoto:'https://pps.whatsapp.net/fixture.jpg',...extra});
 const event=(p,key='fixture-callback-secret')=>hooks.POST(new Request('https://fixture.test/api/z-api/events?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}));
 assert.equal((await event(received(),'wrong')).status,403);assert.equal((await event(received({instanceId:'wrong'}))).status,403);

@@ -4,11 +4,19 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 91.
-- Commit de origem: `2ca196ad490257f18282c86682ccf98083873a02`.
+- Sites: versão 92.
+- Commit de origem: `828aecbd82cbb7916c72885fae6d21d3af879853`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## QR após a troca do Client-Token
+
+A versão 92 entrega o QR sem aguardar a preparação dos callbacks. A preparação segue no servidor em segundo plano, e a confirmação de conexão continua preparando o recebimento antes de iniciar a Ceci. Ao salvar uma credencial validada com aparelho desconectado, a tela aberta solicita o QR automaticamente. Uma sessão já conectada continua sendo apresentada como conectada, sem QR fictício.
+
+A tela descarta consultas antigas ao iniciar uma ação, preserva o QR novo em consultas de status, usa um contador relativo para tolerar diferenças de relógio e limita o pedido a 28 segundos, incluindo leitura da resposta. O carregamento independe da atualização dos indicadores gerais; erros aparecem com opção de nova tentativa.
+
+Testes verificaram resposta imediata do QR enquanto a preparação fica pendente, preparação posterior, corridas de consultas, espera limitada, cancelamento e validade relativa. Rotas compiladas de conexão e atualização do Client-Token aprovadas com D1 isolado e HTTP simulado; sem alteração de token real ou envio externo. A inspeção do navegador autenticado permaneceu indisponível no ambiente.
 
 ## Atualizar Client-Token sem desligar a Ceci
 

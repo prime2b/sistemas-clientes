@@ -1,6 +1,6 @@
 {
-  "version": 91,
-  "sourceCommit": "2ca196ad490257f18282c86682ccf98083873a02",
-  "release": "validar-client-token-sem-desligar-ceci",
+  "version": 92,
+  "sourceCommit": "828aecbd82cbb7916c72885fae6d21d3af879853",
+  "release": "corrigir-pareamento-qr-apos-troca-de-token",
   "date": "2026-10-28"
 }
