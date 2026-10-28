@@ -66,6 +66,10 @@ export async function tickSimulatedSale(job:Row,current:Row,log:Row[],customer:(
   const body=output.message.trim();
   await append(current.conversationId,'user',body,messageId);
   const advanced=applySaleCustomer(sale,{id:messageId,body},agent.body);
+  if(!advanced&&sale.mode!=='manual'&&sale.step==='confirmation'){
+   const attempts=sale.clarification?.step===sale.step?sale.clarification.attempts+1:1;
+   sale.clarification={step:sale.step,attempts};if(attempts>=2)throw new Error('AUTO_SALE_CUSTOMER_AMBIGUOUS');
+  }else if(advanced)delete sale.clarification;
   sale.pendingCustomer='';sale.turns++;sale.revision++;
   current.stage=advanced?saleSteps[sale.step]:'Atendente: esclarecer a resposta do cliente';
   return false;
@@ -131,7 +135,7 @@ async function tickSharedSale(current:Row,log:Row[],customer:(instructions:strin
   const previous=candidates[0];
   if(previous&&applySaleCustomer(sale,previous,log[at].body)){
    sale.quote.status='approved';await core.run("UPDATE messages SET card_data=json_set(card_data,'$.status','approved') WHERE id=? AND conversation_id=?",sale.quoteMessageId,current.conversationId);
-   sale.pendingCustomer='';sale.revision++;current.stage=saleSteps[sale.step];return false;
+   sale.pendingCustomer='';delete sale.clarification;sale.revision++;current.stage=saleSteps[sale.step];return false;
   }
  }
  if(sale.mode==='manual'&&!sale.pendingCustomer)return false;
@@ -172,7 +176,7 @@ async function tickSharedSale(current:Row,log:Row[],customer:(instructions:strin
    body=manual.fallback;await record(current.conversationId,'simulated-client-context-repair',{step:sale.step,focus:manual.focus,agentMessageId:agent.id,simulated:true});
   }
   if(previousClient&&previousClient.id!==key&&previousClient.body.trim()===body&&sale.lastCustomerStep===sale.step&&previousClient.id.startsWith('sale-client-')){
-   if(!manual)throw new Error('AUTO_SALE_REPEATED_REPLY');sale.pendingCustomer='';sale.revision++;current.stage=saleSteps[sale.step];await record(current.conversationId,'manual-response-already-recorded',{agentMessageId:agent.id,customerMessageId:previousClient.id});return false;
+   if(!manual)throw new Error(['quote_acceptance','confirmation'].includes(sale.step)?'AUTO_SALE_CUSTOMER_AMBIGUOUS':'AUTO_SALE_REPEATED_REPLY');sale.pendingCustomer='';sale.revision++;current.stage=saleSteps[sale.step];await record(current.conversationId,'manual-response-already-recorded',{agentMessageId:agent.id,customerMessageId:previousClient.id});return false;
   }
   await append(current.conversationId,'user',body,key);sale.lastCustomerStep=sale.step;if(manual)rememberSalePreferences(sale,body);
   if(choosing||edit){
@@ -182,7 +186,13 @@ async function tickSharedSale(current:Row,log:Row[],customer:(instructions:strin
   }else if(sale.step==='model_query'){
    if(sale.secondProduct&&mentionsTestModel(body,sale.secondProduct))sale.step='catalog_refresh';
   }else{
-   applySaleCustomer(sale,{id:key,body},agent.body);
+   const phase=sale.step,advanced=applySaleCustomer(sale,{id:key,body},agent.body);
+   if(!manual&&['quote_acceptance','confirmation'].includes(phase)&&!advanced){
+    const attempts=sale.clarification?.step===phase?sale.clarification.attempts+1:1;
+    sale.clarification={step:phase,attempts};
+    await record(current.conversationId,'simulated-customer-clarification',{step:phase,attempts,messageId:key,simulated:true});
+    if(attempts>=2)throw new Error('AUTO_SALE_CUSTOMER_AMBIGUOUS');
+   }else if(advanced)delete sale.clarification;
    if(sale.consentMessageId===key){sale.quote.status='approved';await core.run("UPDATE messages SET card_data=json_set(card_data,'$.status','approved') WHERE id=? AND conversation_id=?",sale.quoteMessageId,current.conversationId);}
   }
   sale.pendingCustomer='';sale.turns++;sale.revision++;current.stage=saleSteps[sale.step];return false;

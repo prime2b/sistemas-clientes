@@ -4,11 +4,19 @@ Código-fonte da plataforma de atendimento da Center Cell, com a agente Ceci, ca
 
 ## Versão desta publicação
 
-- Sites: versão 89.
-- Commit de origem: `b7c18521dce49f7289caee39e60f277759fbfb1c`.
+- Sites: versão 90.
+- Commit de origem: `f9f64cf8b91ae8a9a7b403727a320574200a571c`.
 - Aplicação: https://center-cell-atendimento.netlify.app
 - Origem: https://center-cell-atendimento.fredborrasca.chatgpt.site
 - Modelos e credenciais existentes preservados. Playground econômico continua separado da homologação e produção.
+
+## Aceite natural e conclusão do teste automático
+
+A versão 90 corrige o ciclo de perguntas após a atendente enviar o orçamento. O simulador reconhece o aceite natural combinado com retirada/entrega e pagamento, incluindo os textos do print. Avança para o resumo final, registra uma confirmação posterior e conclui a venda simulada com um único orçamento. Aceites persistidos podem ser recuperados sem repetição de mensagens nem outra chamada ao modelo.
+
+Perguntas, condições, recusas, alterações de SKU/quantidade ou preferências conflitantes não aprovam o orçamento. Uma alteração de entrega/pagamento exige novo resumo e confirmação. O modo automático admite no máximo um esclarecimento diferente para um aceite ambíguo; depois encerra como inconclusivo, sem repetir a pergunta nem fabricar conclusão. O modo manual segue sob controle da operadora.
+
+O texto exato do print reproduziu `AUTO_SALE_REPEATED_REPLY` no executor anterior. Os testes corrigidos completam Apple/Samsung/Motorola e o executor natural completo, inclusive as rotas compiladas, com um orçamento e uma conclusão. Recusas e divergências permanecem bloqueadas. Testes usam D1 isolado e HTTP simulado, sem gasto real de IA, envio ao WhatsApp ou venda no ERP. Prompts e atendimento de produção preservados.
 
 ## Retomada de atendimento de números conhecidos
 

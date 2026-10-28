@@ -56,3 +56,13 @@ O cliente simulado recebe explicitamente a última mensagem da operadora e as pe
 “Já separei, pode vir buscar” recebe um reconhecimento natural. Se faltar orçamento, o cliente pede para conferi-lo; essa frase da atendente não comprova reserva, aceite ou venda. A operadora pode continuar escrevendo e tem o botão Consultar e enviar orçamento disponível junto do próximo passo. Depois do orçamento aceito e das condições combinadas, uma confirmação natural como “Combinado, vou buscar. Obrigada!” libera Concluir venda simulada. Perguntas, recusas, condições ou mudança de quantidade não autorizam concluir. O teste manual aguarda a operadora nessas etapas e permite até 30 respostas do cliente, mantendo os limites de tempo/tokens.
 
 `tests/playground-manual-runtime.mjs` cobre os textos dos prints, a recuperação de seleção anterior, fala fora de contexto, orçamento ausente, aceite, encerramento natural e conclusão explícita pela operadora. As mensagens não são enviadas ao WhatsApp e nenhuma venda é criada no ERP.
+
+## Aceite natural e prevenção de ciclos
+
+O cliente simulado pode aceitar o orçamento e informar retirada/entrega e pagamento na mesma mensagem. Expressões como “Está tudo certo. Pode seguir com a compra; vou retirar na loja e pagar por Pix” são decompostas em aceite e preferências, mantendo a conferência do SKU/quantidade do orçamento. O executor avança para o resumo final, sem perguntar de novo sobre o orçamento ou gerar outra cotação. A confirmação final também aceita essa linguagem natural; ela continua sendo uma mensagem posterior ao resumo das condições.
+
+Recusas, dúvidas, condicionais, códigos/quantidades diferentes ou preferências conflitantes não são convertidas em compra. Se o cliente mudar retirada/entrega ou pagamento, a atendente resume as novas condições e pede uma nova confirmação. Mensagens de cortesia isoladas não aceitam um orçamento.
+
+No modo automático, uma resposta que não esclarece o aceite ou a confirmação final admite no máximo uma pergunta de esclarecimento diferente. Se continuar ambígua, o resultado é inconclusivo com motivo explícito, sem ciclo de perguntas nem venda inventada. O modo manual continua aguardando a operadora. Um aceite já persistido antes de uma falha de salvamento é aproveitado sem nova chamada ao modelo ou repetição da mensagem.
+
+`tests/playground-consent-runtime.mjs` reproduz o texto do print e verifica a conversa até a conclusão, orçamento único, recuperação sem gasto adicional, várias peças/modelos, recusas e proteção contra ciclos. O fluxo completo em `tests/shared-central-runtime.mjs` inclui o aceite natural no executor e nas rotas compiladas. As regras e os prompts da Ceci em produção não são alterados por esse tratamento do simulador.

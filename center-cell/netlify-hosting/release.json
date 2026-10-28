@@ -1,6 +1,6 @@
 {
-  "version": 89,
-  "sourceCommit": "b7c18521dce49f7289caee39e60f277759fbfb1c",
-  "release": "iniciar-ceci-em-nova-sessao-e-responder-devolucao",
+  "version": 90,
+  "sourceCommit": "f9f64cf8b91ae8a9a7b403727a320574200a571c",
+  "release": "corrigir-aceite-natural-e-loop-da-atendente-simulada",
   "date": "2026-10-27"
 }

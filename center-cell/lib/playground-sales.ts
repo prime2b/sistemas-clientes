@@ -5,7 +5,7 @@ import {manualClosing} from './playground-manual.ts';
 type Row=Record<string,any>;
 export type SimulatedAttendant={slot:number;name:string;avatar:string;available:boolean;load:number};
 export type SaleStep='claim'|'selection'|'quote'|'quote_acceptance'|'model_query'|'catalog_refresh'|'delivery'|'payment'|'confirmation'|'ready'|'completed'|'queued';
-export type SimulatedSale={shared?:boolean;knownQuantity?:number;catalog?:any[];selection?:{productId:number;quantity:number}[];selectionIssue?:'product'|'quantity'|'stock';scenarioKind?:string;scenarioId?:string;quoteVersions?:number;secondProduct?:any;revision:number;mode:'automatic'|'manual';step:SaleStep;team:SimulatedAttendant[];assignedSlot:number|null;receivedAt:number;acceptedAt:number;completedAt:number;quote:any;quoteMessageId:string;consentMessageId:string;handoffMessageId:string;summary:string;delivery:string;payment:string;confirmationMessageId:string;pendingCustomer:string;turns:number;deliveryChoice:'retirada'|'entrega';paymentChoice:'pix'|'cartao';lastAgentMessageId?:string;lastCustomerStep?:SaleStep};
+export type SimulatedSale={shared?:boolean;knownQuantity?:number;catalog?:any[];selection?:{productId:number;quantity:number}[];selectionIssue?:'product'|'quantity'|'stock';clarification?:{step:SaleStep;attempts:number};scenarioKind?:string;scenarioId?:string;quoteVersions?:number;secondProduct?:any;revision:number;mode:'automatic'|'manual';step:SaleStep;team:SimulatedAttendant[];assignedSlot:number|null;receivedAt:number;acceptedAt:number;completedAt:number;quote:any;quoteMessageId:string;consentMessageId:string;handoffMessageId:string;summary:string;delivery:string;payment:string;confirmationMessageId:string;pendingCustomer:string;turns:number;deliveryChoice:'retirada'|'entrega';paymentChoice:'pix'|'cartao';lastAgentMessageId?:string;lastCustomerStep?:SaleStep};
 const fold=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export const saleSteps:Record<SaleStep,string>={claim:'Aguardando alguém assumir na central',selection:'Escolher produto e quantidade',quote:'Consultar e montar orçamento pela atendente',quote_acceptance:'Cliente conferir o orçamento',model_query:'Confirmar novo modelo com a equipe',catalog_refresh:'Consultar opções do novo modelo',delivery:'Combinar retirada ou entrega',payment:'Combinar forma de pagamento',confirmation:'Confirmar a combinação',ready:'Pronto para concluir',completed:'Venda simulada concluída',queued:'Aguardando atendente disponível'};
 
@@ -63,6 +63,10 @@ export function rememberSalePreferences(sale:SimulatedSale,body:string){
 }
 export function saleQuestion(sale:SimulatedSale){
  const first=saleAttendant(sale)?.name.split(' ')[0]||'a atendente';
+ if(sale.clarification?.step===sale.step){
+  if(sale.step==='quote_acceptance')return 'Você aprova este orçamento ou quer ajustar algum item antes de seguir?';
+  if(sale.step==='confirmation')return 'Posso concluir com '+(sale.delivery==='retirada'?'a retirada na loja':'a entrega')+' e pagamento '+(sale.payment==='pix'?'por Pix':'no cartão')+' que combinamos?';
+ }
  if(sale.step==='selection'){if(sale.selectionIssue==='stock')return 'Essa quantidade não foi confirmada para o item escolhido. Quer conferir outra opção da lista?';if(sale.selectionIssue==='product')return 'Qual dos códigos da lista você prefere?';if(sale.selectionIssue==='quantity')return 'Qual quantidade você quer desse item?';return `${sale.acceptedAt?'':'Oi! Já estou com as opções que você recebeu. '}${sale.knownQuantity?'Qual código você escolhe para as '+sale.knownQuantity+' unidades que pediu?':'Qual código você escolhe e quantas unidades precisa?'}`;}
  if(sale.step==='quote_acceptance')return 'Ficou tudo certo com este orçamento? Posso seguir com a compra?';
  if(sale.step==='model_query')return 'Já estou com as opções que você recebeu. Quer continuar com esse modelo ou precisa de outro?';
@@ -72,30 +76,43 @@ export function saleQuestion(sale:SimulatedSale){
  return '';
 }
 /** Accept a quoted selection repeated alongside pickup/payment; never accept a changed item or quantity. */
-function sharedQuoteConsent(sale:SimulatedSale,body:string,previousAgent:string){
- if(confirmsPurchase(body,previousAgent,sale.quote?.items))return {delivery:'',payment:''};
+function simulatedQuoteConsent(sale:SimulatedSale,body:string,previousAgent:string,allowPreferencesOnly=false){
+ if(!sale.quoteMessageId||!validQuote(sale.quote))return null;
+ const text=fold(body);
+ if(/[?]|\b(?:nao|talvez|depois|pensar|antes|mas|porem|se|caso|quando|depende|troca\w*|muda\w*|alter\w*|adicion\w*|acrescent\w*|desist\w*|cancel\w*)\b/.test(text))return null;
+ if(confirmsPurchase(body,previousAgent,sale.quote?.items))return {delivery:'',payment:'',accepted:true};
  const items=sale.quote?.items;if(!items?.length)return null;
  let delivery='',payment='';const words:Record<string,number>={um:1,uma:1,dois:2,duas:2,tres:3,quatro:4,cinco:5,seis:6,sete:7,oito:8,nove:9,dez:10};
  const remainder:string[]=[];
- for(const clause of fold(body).split(/[,.!;]+/).map(s=>s.trim()).filter(Boolean)){
+ for(let clause of text.split(/[,.!;]+|\s+e\s+/).map(s=>s.trim()).filter(Boolean)){
   const code=/^(?:o )?c(?:odigo|od)\.?\s*[:#]?\s*(\d+)$/.exec(clause);
   if(code){if(items.length!==1||!items.some((i:Row)=>i.productId===Number(code[1])))return null;continue;}
   const quantity=/^(?:(?:as|das|essas|estas) )?(\d+|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez) (?:unidades?|pecas?)$/.exec(clause);
   if(quantity){if(items.length!==1||Number(words[quantity[1]]||quantity[1])!==items.reduce((n:number,i:Row)=>n+i.quantity,0))return null;continue;}
-  const preference=/^(?:(?:prefiro|quero|vou) )?(retirar na loja|retirada na loja|receber por entrega|entrega a combinar)(?: e (?:pagar |pagamento )?(?:por |no |com )?(pix|cartao))?$/.exec(clause);
-  if(preference){const d=preference[1].startsWith('retir')?'retirada':'entrega';if(delivery&&delivery!==d||payment&&preference[2]&&payment!==preference[2])return null;delivery=d;payment=preference[2]||payment;continue;}
-  const pay=/^(?:(?:prefiro|quero|vou) )?(?:pagar |pagamento )?(?:por |no |com )?(pix|cartao)$/.exec(clause);
+  // An action may refer to the already summarized delivery, without selecting
+  // another item. Preserve the action as consent; parse the bounded preference.
+  const actionWithDelivery=/^((?:pode|podemos|vamos) (?:concluir|finalizar|fechar|seguir))(?: assim)? com (?:a )?(retirada na loja|entrega(?: a combinar)?)$/.exec(clause);
+  if(actionWithDelivery){remainder.push(actionWithDelivery[1]);clause=actionWithDelivery[2];}
+  const preference=/^(?:(?:eu )?(?:prefiro|quero|vou|gostaria de) )?(retirar(?: na loja| no balcao)?|retirada(?: na loja| no balcao)?|buscar na loja|receber (?:por entrega|em casa)|entrega(?: a combinar)?)$/.exec(clause);
+  if(preference){const d=/^(?:retir|buscar)/.test(preference[1])?'retirada':'entrega';if(delivery&&delivery!==d)return null;delivery=d;continue;}
+  const pay=/^(?:(?:eu )?(?:prefiro|quero|vou|gostaria de) )?(?:pagar |pago |(?:o )?pagamento )?(?:por |no |com |via |em )?(pix|cartao)$/.exec(clause);
   if(pay){if(payment&&payment!==pay[1])return null;payment=pay[1];continue;}
-  remainder.push(clause);
+  if(/^(?:(?:muito )?obrigad[oa]|valeu|por favor)$/.test(clause))continue;
+  const acknowledgment=/^(?:(?:por|para|pra) mim )?(?:sim|isso|ok|okay|certo|perfeito|beleza|combinado|tudo combinado|tudo (?:bem|ok|certo|certinho|correto)|(?:esta|ta|ficou|deu)(?: tudo)? (?:bem|ok|certo|certinho|correto)|estou de acordo|de acordo|(?:aprovo|aceito|confirmo) (?:o|esse|este) (?:orcamento|pedido)|orcamento aprovado)(?: com (?:o|esse|este) (?:orcamento|pedido)| com os valores)?(?: (?:por|para|pra) mim)?(?: sim)?$/;
+  clause=clause.replace(/^(?:(?:esta|ta|ficou)(?: tudo)? (?:certo|certinho|correto)|tudo certo)\s+(?=(?:pode|podemos|vamos|quero)\b)/,'');
+  remainder.push(acknowledgment.test(clause)?'sim':clause.replace(/\bassim\b/g,'').replace(/\s+/g,' ').trim());
  }
- return confirmsPurchase(remainder.join('. '),previousAgent,items)?{delivery,payment}:null;
+ const consent=remainder.length&&remainder.every(s=>s==='sim')?'sim':remainder.join('. ');
+ if(confirmsPurchase(consent||'',previousAgent,items))return {delivery,payment,accepted:true};
+ return allowPreferencesOnly&&!remainder.length&&(delivery||payment)?{delivery,payment,accepted:false}:null;
 }
 export function applySaleCustomer(sale:SimulatedSale,message:Row,previousAgent:string){
  const text=fold(String(message.body||''));
- if(sale.shared&&sale.step==='quote_acceptance'){const consent=sharedQuoteConsent(sale,String(message.body||''),previousAgent);if(!consent)return false;rememberSalePreferences(sale,String(message.body||''));sale.consentMessageId=message.id;sale.delivery=consent.delivery||sale.delivery;sale.payment=consent.payment||sale.payment;sale.step=sale.delivery?(sale.payment?'confirmation':'payment'):'delivery';return true;}
+ if(sale.shared&&sale.step==='quote_acceptance'){const consent=simulatedQuoteConsent(sale,String(message.body||''),previousAgent);if(!consent)return false;rememberSalePreferences(sale,String(message.body||''));sale.consentMessageId=message.id;sale.delivery=consent.delivery||sale.delivery;sale.payment=consent.payment||sale.payment;sale.step=sale.delivery?(sale.payment?'confirmation':'payment'):'delivery';return true;}
  // A question or refusal is never completion, and a changed order requires review.
  if(/[?]|\b(?:nao|talvez|depois|pensar|antes|mas|troca\w*|alter\w*|adicion\w*|acrescent\w*|desist\w*|cancel\w*)\b/.test(text))return false;
- rememberSalePreferences(sale,String(message.body||''));
+ const previousDelivery=sale.delivery,previousPayment=sale.payment;
+ if(sale.step!=='confirmation')rememberSalePreferences(sale,String(message.body||''));
  if(sale.step==='delivery'){
   const pickup=/\bretir\w*\b|buscar na loja/.test(text),delivery=/\bentrega\b|receber em casa/.test(text);
   if(pickup===delivery)return false;sale.delivery=pickup?'retirada':'entrega';sale.step=sale.payment?'confirmation':'payment';return true;
@@ -107,7 +124,12 @@ export function applySaleCustomer(sale:SimulatedSale,message:Row,previousAgent:s
  const invitation=/(?:posso|podemos|confirma|confirmar).{0,60}(?:concluir|fechar|finalizar|combinad)/.test(fold(previousAgent));
  const acknowledgment=/^(?:(?:sim|isso|ok|certo|ta certo|tudo certo|combinado|confirmo)[,.!\s]*)+$/.test(text);
  const naturalClosing=sale.mode==='manual'&&sale.quote?.status==='approved'&&!!sale.quoteMessageId&&!!sale.consentMessageId&&!!sale.delivery&&!!sale.payment&&manualClosing(previousAgent)&&!/[?\d]|\b(?:se|caso|quando|depende|codigo|unidades?|pecas?|quero|preciso)\b/.test(text)&&/\b(?:sim|isso|confirmo|combinado|certo|ok|obrigad[ao]|valeu|ate|vou buscar|vou retirar|passo ai)\b/.test(text);
- if(sale.step==='confirmation'&&(confirmsPurchase(String(message.body).replace(/\bassim\b/gi,''),previousAgent,sale.quote?.items)||invitation&&acknowledgment||naturalClosing)){
+ const finalConsent=sale.quote?.status==='approved'&&sale.consentMessageId?simulatedQuoteConsent(sale,String(message.body||''),previousAgent,true):null;
+ if(sale.step==='confirmation'&&(finalConsent?.delivery&&finalConsent.delivery!==previousDelivery||finalConsent?.payment&&finalConsent.payment!==previousPayment)){
+  if(finalConsent?.delivery)sale.delivery=finalConsent.delivery;if(finalConsent?.payment)sale.payment=finalConsent.payment;
+  return true; // Re-summarize changed conditions before requesting final confirmation.
+ }
+ if(sale.step==='confirmation'&&(finalConsent?.accepted||confirmsPurchase(String(message.body).replace(/\bassim\b/gi,''),previousAgent,sale.quote?.items)||invitation&&acknowledgment||naturalClosing)){
   sale.confirmationMessageId=message.id;sale.step='ready';return true;
  }
  return false;
