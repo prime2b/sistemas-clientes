@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.netlify/
+.qa/
+.env*
+!.env.example
+worker/generated-uf.mjs
